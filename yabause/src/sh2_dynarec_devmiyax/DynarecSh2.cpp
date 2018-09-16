@@ -751,29 +751,32 @@ Block * CompileBlocks::CompileBlock(u32 pc, addrs * ParentT = NULL)
   }
   
   if (g_CompleBlock[blockCount].b_addr != 0x00) {
-    switch (g_CompleBlock[blockCount].b_addr & 0x0FF00000) {
-    case 0x00000000:
-      if (yabsys.emulatebios) {
-        return NULL;
+    
+    if ((g_CompleBlock[blockCount].b_addr & 0xFF000000) == 0xC0000000) {
+      LookupTableC[(g_CompleBlock[blockCount].b_addr & 0x000FFFFF) >> 1] = NULL;
+    }
+    else {
+      switch (g_CompleBlock[blockCount].b_addr & 0x0FF00000) {
+      case 0x00000000:
+        if (yabsys.emulatebios) {
+          //return NULL; do nothing
+        }
+        else {
+          LookupTableRom[(g_CompleBlock[blockCount].b_addr & 0x000FFFFF) >> 1] = NULL;
+        }
+        break;
+      case 0x00200000:
+        LookupTableLow[(g_CompleBlock[blockCount].b_addr & 0x000FFFFF) >> 1] = NULL;
+        break;
+      case 0x06000000:
+        /*case 0x06100000:*/
+        LookupTable[(g_CompleBlock[blockCount].b_addr & 0x000FFFFF) >> 1] = NULL;
+        //LOG("%d, %08X is removed due to overflow", blockCount, g_CompleBlock[blockCount].b_addr);
+        break;
+      default:
+        break;
       }
-      else {
-        LookupTableRom[ (g_CompleBlock[blockCount].b_addr&0x000FFFFF)>>1  ] = NULL;
-      }
-      break;
-    case 0x00200000:
-      LookupTableLow[ (g_CompleBlock[blockCount].b_addr&0x000FFFFF)>>1 ] = NULL;
-      break;
-    case 0x06000000:
-      /*case 0x06100000:*/
-      LookupTable[ (g_CompleBlock[blockCount].b_addr & 0x000FFFFF)>>1 ] = NULL;
-      //LOG("%d, %08X is removed due to overflow", blockCount, g_CompleBlock[blockCount].b_addr);
-      break;
-    default:
-      if ((g_CompleBlock[blockCount].b_addr & 0xFF000000) == 0xC0000000) {
-        LookupTableC[ (g_CompleBlock[blockCount].b_addr & 0x000FFFFF)>>1   ] = NULL;
-      }
-      break;
-    } 
+    }
   }
 
   g_CompleBlock[blockCount].b_addr = pc;
@@ -1191,9 +1194,14 @@ int CompileBlocks::EmmitCode(Block *page, addrs * ParentT )
       write_memory_counter = 0;
       //if( (op&0xFF00) == 0x8900) continue;  // BT
       //if( (op&0xFF00) == 0x8B00) continue;  // BF
-          
-          break;
+      break;
     }
+
+    if ((op & 0xF0FF) == 0x400e || (op & 0xF0FF) == 0x4007) // sh2_LDC_SR
+    {
+      break;
+    }
+
   }
   page->e_addr = addr-2;
   memcpy((void*)ptr, (void*)epilogue, EPILOGSIZE);
@@ -1308,6 +1316,10 @@ void DynarecSh2::ExecuteCount( u32 Count ) {
       loopskip_cnt_++;
     }
     //printf("%d/%d\n",GET_COUNT(),targetcnt);
+
+    if (addcycle_ != 0) {
+      m_pDynaSh2->SysReg[4] += addcycle_; addcycle_ = 0;
+    }
     CurrentSH2->cycles = GET_COUNT();
   }
 
@@ -1331,7 +1343,7 @@ int DynarecSh2::CheckOneStep() {
 
 void DynarecSh2::Undecoded(){
 
-//  LOG("Undecoded %08X", GET_PC());
+  LOG("Undecoded %08X", GET_PC());
   // Save regs.SR on stack
   GetGenRegPtr()[15] -= 4;
   memSetLong(GetGenRegPtr()[15], GET_SR());
@@ -1360,95 +1372,99 @@ inline int DynarecSh2::Execute(){
 #if defined(EXECUTE_STAT)
   m_pCompiler->setShowCode( is_slave_ );
 #endif
-  switch( GET_PC() & 0x0FF00000 )
+//#endif
+
+  if ((GET_PC() & 0xFF000000) == 0xC0000000)
   {
-    
-  // ROM
-  case 0x00000000:
-    if (yabsys.extend_backup) {
-      const u32 bupaddr = 0x0007d600; // MappedMemoryReadLong(0x06000358);
-      if (GET_PC() == bupaddr) {
-        LOG("BUP_Init");
-        BiosBUPInit(ctx_);
-        yabsys.extend_backup = 2;
+    pBlock = m_pCompiler->LookupTableC[(GET_PC() & 0x000FFFFF) >> 1];
+    if (pBlock == NULL)
+    {
+      pBlock = m_pCompiler->CompileBlock(GET_PC());
+      m_pCompiler->LookupTableC[(GET_PC() & 0x000FFFFF) >> 1] = pBlock;
+      if (pBlock == NULL) {
+        Undecoded();
         return IN_INFINITY_LOOP;
       }
-      else if (yabsys.extend_backup == 2 &&
-        GET_PC() >= 0x0380 &&
-        GET_PC() <= 0x03A8) {
+    }
+  }
+  else {
+
+    switch (GET_PC() & 0x0FF00000)
+    {
+
+      // ROM
+    case 0x00000000:
+      if (yabsys.extend_backup) {
+        const u32 bupaddr = 0x0007d600; // MappedMemoryReadLong(0x06000358);
+        if (GET_PC() == bupaddr) {
+          LOG("BUP_Init");
+          BiosBUPInit(ctx_);
+          yabsys.extend_backup = 2;
+          return IN_INFINITY_LOOP;
+        }
+        else if (yabsys.extend_backup == 2 &&
+          GET_PC() >= 0x0380 &&
+          GET_PC() <= 0x03A8) {
+          BiosHandleFunc(ctx_);
+          return IN_INFINITY_LOOP;
+        }
+      }
+      if (yabsys.emulatebios) {
         BiosHandleFunc(ctx_);
         return IN_INFINITY_LOOP;
       }
-    }
-    if (yabsys.emulatebios){
-      BiosHandleFunc(ctx_);
-      return IN_INFINITY_LOOP;
-    }
-    pBlock = m_pCompiler->LookupTableRom[(GET_PC() & 0x000FFFFF) >> 1];
-    if( pBlock == NULL )
-    {
-      pBlock = m_pCompiler->CompileBlock(GET_PC());
-      if (pBlock == NULL) {
-        Undecoded();
-        return IN_INFINITY_LOOP;
-      }
-      m_pCompiler->LookupTableRom[(GET_PC() & 0x000FFFFF) >> 1] = pBlock;
-    }
-    break;
-
-  // Low Memory
-  case 0x00200000:
-    pBlock = m_pCompiler->LookupTableLow[(GET_PC() & 0x000FFFFF) >> 1];
-    if( pBlock == NULL )
-    {
-      pBlock = m_pCompiler->CompileBlock(GET_PC());
-      if (pBlock == NULL) {
-        Undecoded();
-        return IN_INFINITY_LOOP;
-      }
-      m_pCompiler->LookupTableLow[(GET_PC() & 0x000FFFFF) >> 1] = pBlock;
-    }
-    break;
-
-  // High Memory
-  case 0x06000000:
-  /*case 0x06100000:*/
-
-    pBlock = m_pCompiler->LookupTable[ (GET_PC() & 0x000FFFFF)>>1 ];
-    if( pBlock == NULL )
-    {
-      pBlock = m_pCompiler->CompileBlock(GET_PC(), m_pCompiler->LookupParentTable);
-      if (pBlock == NULL) {
-        Undecoded();
-        return IN_INFINITY_LOOP;
-      }
-      m_pCompiler->LookupTable[ (GET_PC() & 0x000FFFFF)>>1 ] = pBlock;
-    } 
-    break;
-
-  // Cache
-  default:
-    if( (GET_PC() & 0xFF000000) == 0xC0000000 )
-    {
-      pBlock = m_pCompiler->LookupTableC[ (GET_PC() & 0x000FFFFF)>>1 ];
-      if( pBlock == NULL )
+      pBlock = m_pCompiler->LookupTableRom[(GET_PC() & 0x000FFFFF) >> 1];
+      if (pBlock == NULL)
       {
         pBlock = m_pCompiler->CompileBlock(GET_PC());
-        m_pCompiler->LookupTableC[ (GET_PC()&0x000FFFFF)>>1 ] = pBlock;
         if (pBlock == NULL) {
-           Undecoded();
-           return IN_INFINITY_LOOP;
+          Undecoded();
+          return IN_INFINITY_LOOP;
         }
-      } 
-    }else{
+        m_pCompiler->LookupTableRom[(GET_PC() & 0x000FFFFF) >> 1] = pBlock;
+      }
+      break;
+
+      // Low Memory
+    case 0x00200000:
+      pBlock = m_pCompiler->LookupTableLow[(GET_PC() & 0x000FFFFF) >> 1];
+      if (pBlock == NULL)
+      {
+        pBlock = m_pCompiler->CompileBlock(GET_PC());
+        if (pBlock == NULL) {
+          Undecoded();
+          return IN_INFINITY_LOOP;
+        }
+        m_pCompiler->LookupTableLow[(GET_PC() & 0x000FFFFF) >> 1] = pBlock;
+      }
+      break;
+
+      // High Memory
+    case 0x06000000:
+      /*case 0x06100000:*/
+
+      pBlock = m_pCompiler->LookupTable[(GET_PC() & 0x000FFFFF) >> 1];
+      if (pBlock == NULL)
+      {
+        pBlock = m_pCompiler->CompileBlock(GET_PC(), m_pCompiler->LookupParentTable);
+        if (pBlock == NULL) {
+          Undecoded();
+          return IN_INFINITY_LOOP;
+        }
+        m_pCompiler->LookupTable[(GET_PC() & 0x000FFFFF) >> 1] = pBlock;
+      }
+      break;
+
+      // Cache
+    default:
       pBlock = m_pCompiler->CompileBlock(GET_PC());
       if (pBlock == NULL) {
         Undecoded();
         return IN_INFINITY_LOOP;
       }
+      break;
     }
-    break;  
-   }
+  }
     
 #if 0
     static FILE * fp = NULL;
@@ -1482,6 +1498,10 @@ inline int DynarecSh2::Execute(){
 #else
   ((dynaFunc)((void*)(pBlock->code)))(m_pDynaSh2);
 #endif
+  
+  if ((GET_SR() & 0xF0) < GET_ICOUNT()) {
+    this->CheckInterupt();
+  }
 
   if (!m_pCompiler->debug_mode_ && (pBlock->flags&BLOCK_LOOP) ){
     if (m_pDynaSh2->SysReg[3] < pBlock->e_addr && m_pDynaSh2->SysReg[3] >= pBlock->b_addr) {
@@ -1502,12 +1522,28 @@ bool operator == (const dIntcTbl & data1 , const dIntcTbl & data2 )
   return ( data1.Vector == data2.Vector );
 }
 
+void DynarecSh2::RemoveInterrupt(u8 Vector, u8 level) {
+  YabThreadLock(mtx_);
+  m_IntruptTbl.remove_if([&](const dIntcTbl & n) { 
+    return n.Vector == Vector; 
+  });
+  if (m_IntruptTbl.size() != 0) {
+    m_IntruptTbl.sort();
+    m_pDynaSh2->SysReg[5] = m_IntruptTbl.begin()->level << 4;
+  }
+  else {
+    m_pDynaSh2->SysReg[5] = 0x0000;
+  }
+  YabThreadUnLock(mtx_);
+}
+
 void DynarecSh2::AddInterrupt( u8 Vector, u8 level )
 {
   // Ignore Timer0 and Timer1 when masked
-  if ((Vector == 67 || Vector == 68) && level <= ((m_pDynaSh2->CtrlReg[0] >> 4) & 0x0F)){
-    return;
-  }
+  //if ((Vector == 67 /*|| Vector == 68*/) && level <= ((m_pDynaSh2->CtrlReg[0] >> 4) & 0x0F)){
+  //  LOG("Vector %d is skiped\n", Vector);
+  //  return;
+  //}
 
   dIntcTbl tmp;
   tmp.Vector = Vector;
@@ -1519,8 +1555,6 @@ void DynarecSh2::AddInterrupt( u8 Vector, u8 level )
   m_IntruptTbl.unique(); 
 
   //printf("AddInterrupt v:%d l:%d\n", Vector, level );
-
-
 
   if( m_IntruptTbl.size() > 1 ) {
     m_IntruptTbl.sort();

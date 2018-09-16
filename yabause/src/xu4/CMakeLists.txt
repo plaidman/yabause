@@ -8,7 +8,6 @@ find_package(OpenGLES)
 find_package(PkgConfig REQUIRED)
 
 find_package(Boost REQUIRED COMPONENTS system filesystem date_time locale)
-INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} "nanogui-sdl/include" "nanogui-sdl/ext/eigen" )
 
 if (NOT OPENGLES2_FOUND)
 	return()
@@ -23,7 +22,7 @@ include( ../glfw/external_zlib.cmake )
 include( ../glfw/external_libpng.cmake )
 
 
-set(PORT_INCLUDE_DIRS ${SDL2_INCLUDE_DIR} ${OPENGLES_INCLUDE_DIR} ${png_INCLUDE_DIR} ${zlib_INCLUDE_DIR} )
+set(PORT_INCLUDE_DIRS ${SDL2_INCLUDE_DIR} ${png_INCLUDE_DIR} ${zlib_INCLUDE_DIR} )
 set(PORT_LIBRARIES ${SDL2_LIBRARY} ${OPENGLES2_LIBRARIES} ${png_STATIC_LIBRARIES} ${zlib_STATIC_LIBRARIES} )
 
 
@@ -37,6 +36,7 @@ set(yabause_xu4_SOURCES
 	MenuScreen.cpp
 ) 
 
+include_directories( ${PORT_INCLUDE_DIRS} ${Boost_INCLUDE_DIR} "nanogui-sdl/include" "nanogui-sdl/ext/eigen" )
 add_executable(yabause-xu4 ${yabause_xu4_SOURCES})
 target_link_libraries(yabause-xu4 yabause  ${Boost_LIBRARIES} pugixml ${YABAUSE_LIBRARIES} ${PORT_LIBRARIES} nanogui )
 

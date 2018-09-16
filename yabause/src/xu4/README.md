@@ -8,7 +8,7 @@ $ cd yabause
 $ git submodule update --init --recursive
 $ mkdir build
 $ cd build
-$ cmake ../yabause -DYAB_PORTS=xu4
+$ cmake ../yabause -DYAB_PORTS=xu4 -DYAB_WANT_DYNAREC_DEVMIYAX=ON -DYAB_WANT_ARM7=ON
 $ make
 ```
 

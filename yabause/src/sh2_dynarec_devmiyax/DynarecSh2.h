@@ -318,6 +318,7 @@ public:
   bool IsSlave() { return is_slave_;  }
 
   dlstIntct m_IntruptTbl;
+  void RemoveInterrupt(u8 Vector, u8 level);
   void AddInterrupt( u8 Vector, u8 level );
   int CheckInterupt();
   int InterruptRutine(u8 Vector, u8 level);
@@ -327,6 +328,12 @@ public:
   void ExecuteCount(u32 Count );
   int Execute();
   void Undecoded();
+
+  void AddCycle(u32 cycle) {
+    addcycle_ += cycle;
+  }
+
+  u32 addcycle_ = 0;
 
   void ShowStatics();
   void ShowCompileInfo();

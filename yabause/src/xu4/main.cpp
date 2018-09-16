@@ -54,7 +54,7 @@ extern "C" {
 #include "sndsdl.h"
 #include "osdcore.h"
 #include "ygl.h"
-#include "libpng/png.h"
+#include "libpng12/png.h"
 }
 
 #include "InputManager.h"
@@ -126,7 +126,7 @@ VideoInterface_struct *VIDCoreList[] = {
 #ifdef YAB_PORT_OSD
 #include "nanovg/nanovg_osdcore.h"
 OSD_struct *OSDCoreList[] = {
-  &OSDNnovg,
+  //&OSDNnovg,
   &OSDDummy,
   NULL
 };
@@ -194,7 +194,7 @@ int yabauseinit()
 #else
   //yinit.sh2coretype = 0;
 #endif
-  yinit.sh2coretype = 3;
+  yinit.sh2coretype = 0;
   //yinit.vidcoretype = VIDCORE_SOFT;
   yinit.vidcoretype = 1;
   yinit.sndcoretype = SNDCORE_SDL;
@@ -231,7 +231,7 @@ int yabauseinit()
 
   inputmng->init();
   OSDInit(0);
-  OSDChangeCore(OSDCORE_NANOVG);
+  OSDChangeCore(OSDCORE_DUMMY);
   LogStart();
   LogChangeOutput(DEBUG_CALLBACK, NULL);
   return 0;

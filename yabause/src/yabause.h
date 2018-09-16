@@ -62,6 +62,7 @@ typedef struct
    int extend_backup;
    int rotate_screen;
    int scsp_sync_count_per_frame;
+   int scsp_main_mode;
    u32 sync_shift;
 } yabauseinit_struct;
 
@@ -126,7 +127,7 @@ extern yabsys_struct yabsys;
 int YabauseEmulate(void);
 
 extern u32 saved_scsp_cycles;
-extern u32 saved_m68k_cycles;
+extern volatile u64 saved_m68k_cycles;
 #define SCSP_FRACTIONAL_BITS 20
 u32 get_cycles_per_line_division(u32 clock, int frames, int lines, int divisions_per_line);
 u32 YabauseGetCpuTime();
