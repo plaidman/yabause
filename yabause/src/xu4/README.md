@@ -25,7 +25,7 @@ $ make
 | -v        | --version                     | | 
 | -h        |                               | Show help information |
 
-## KeyConfig file
+## KeyConfig file:
 
 Key config file is sotred as ~/.yabasanshiro/keymap.json .
 
@@ -62,7 +62,7 @@ Sample file format
 
 ## Special functions for Retropie:
 
-* Synchronize input settings with ~/.emulationstation/es_temporaryinput.cfg
+* Synchronize input settings with ~/.emulationstation/es_temporaryinput.cfg, if you don't have ~/.yabasanshiro/keymap.json .
 
 | es_temporaryinput.cfg | YabaSanshiro                  |
 |-----------------------|-------------------------------|
