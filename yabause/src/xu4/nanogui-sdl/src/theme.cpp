@@ -43,11 +43,11 @@ Theme::Theme(NVGcontext *ctx) {
     mTextColorShadow                  = Color(0, 160);
     mIconColor                        = mTextColor;
 
-    mButtonGradientTopFocused         = Color(64, 255);
+    mButtonGradientTopFocused         = Color(48, 255);
     mButtonGradientBotFocused         = Color(48, 255);
     mButtonGradientTopUnfocused       = Color(74, 255);
-    mButtonGradientBotUnfocused       = Color(58, 255);
-    mButtonGradientTopPushed          = Color(41, 255);
+    mButtonGradientBotUnfocused       = Color(74, 255);
+    mButtonGradientTopPushed          = Color(29, 255);
     mButtonGradientBotPushed          = Color(29, 255);
 
     /* Window-related */

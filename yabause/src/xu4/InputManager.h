@@ -11,6 +11,7 @@ class YWindow;
 
 class MenuScreen;
 
+
 //you should only ever instantiate one of these, by the way
 class InputManager
 {
@@ -37,6 +38,8 @@ private:
 	bool loadInputConfig(InputConfig* config); // returns true if successfully loaded, false if not (or didn't exist)
 	MenuScreen * menu_layer_ = nullptr;
 
+  int convertFromEmustationFile( const std::string & fname );
+
 public:
 	virtual ~InputManager();
 
@@ -45,7 +48,7 @@ public:
 	void writeDeviceConfig(InputConfig* config);
 	static std::string getConfigPath();
 
-	void init();
+	void init( const std::string & fname );
 	void deinit();
 
 	int getNumJoysticks();
@@ -71,6 +74,10 @@ public:
 	void setToggleMenuEventCode( uint32_t type ){ showmenu_ = type; }
 
 	void setGamePadomode( int user, int mode );
+	int getCurrentPadMode( int user );
+	std::string config_fname_;
+
+	void updateConfig();
 	
 };
 

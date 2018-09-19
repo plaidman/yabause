@@ -63,6 +63,7 @@ extern "C" {
 extern "C" {
 static char biospath[256] = "/home/pigaming/RetroPie/BIOS/saturn/bios.bin";
 static char cdpath[256] = "/home/pigaming/RetroPie/roms/saturn/nights.cue";
+//static char cdpath[256] = "/home/pigaming/RetroPie/roms/saturn/Virtua Fighter Kids (1996)(Sega)(JP).ccd";
 static char buppath[256] = "./back.bin";
 static char mpegpath[256] = "\0";
 static char cartpath[256] = "\0";
@@ -126,7 +127,7 @@ VideoInterface_struct *VIDCoreList[] = {
 #ifdef YAB_PORT_OSD
 #include "nanovg/nanovg_osdcore.h"
 OSD_struct *OSDCoreList[] = {
-  //&OSDNnovg,
+  &OSDNnovg,
   &OSDDummy,
   NULL
 };
@@ -145,6 +146,7 @@ InputManager* inputmng;
 MenuScreen * menu;
 
 using std::string;
+string g_keymap_filename;
 
 //----------------------------------------------------------------------------------------------
 NVGcontext * getGlobalNanoVGContext(){
@@ -182,6 +184,8 @@ int YuiUseOGLOnThisThread(){
 
 int saveScreenshot( const char * filename );
 
+int padmode = 0;
+
 int yabauseinit()
 {
   int res;
@@ -194,7 +198,7 @@ int yabauseinit()
 #else
   //yinit.sh2coretype = 0;
 #endif
-  yinit.sh2coretype = 0;
+  yinit.sh2coretype = 3;
   //yinit.vidcoretype = VIDCORE_SOFT;
   yinit.vidcoretype = 1;
   yinit.sndcoretype = SNDCORE_SDL;
@@ -223,15 +227,17 @@ int yabauseinit()
   yinit.rotate_screen = 0;
   yinit.scsp_sync_count_per_frame = g_scsp_sync;
   yinit.extend_backup = 1;
+  yinit.scsp_main_mode = 1;
 
   res = YabauseInit(&yinit);
   if( res == -1) {
     return -1;
   }
 
-  inputmng->init();
+  inputmng->init(g_keymap_filename);
+  padmode = inputmng->getCurrentPadMode( 0 );
   OSDInit(0);
-  OSDChangeCore(OSDCORE_DUMMY);
+  OSDChangeCore(OSDCORE_NANOVG);
   LogStart();
   LogChangeOutput(DEBUG_CALLBACK, NULL);
   return 0;
@@ -245,13 +251,15 @@ int main(int argc, char** argv)
 
   // Inisialize home directory
   std::string home_dir = getenv("HOME");
-  home_dir += "/.yabasanshiro";
+  home_dir += "/.yabasanshiro/";
   struct stat st = {0};
   if (stat(home_dir.c_str(), &st) == -1) {
     mkdir(home_dir.c_str(), 0700);
   }  
   std::string bckup_dir = home_dir + "backup.bin";
   strcpy( buppath, bckup_dir.c_str() );
+
+  g_keymap_filename = home_dir + "keymap.json";
 
   std::string current_exec_name = argv[0]; // Name of the current exec program
   std::vector<std::string> all_args;
@@ -388,7 +396,6 @@ int main(int argc, char** argv)
   Uint32  evToggleFrameSkip = SDL_RegisterEvents(1);
   menu->setToggleFrameSkip(evToggleFrameSkip);
 
-  int padmode = 0;
   
   bool menu_show = false;
   std::string tmpfilename = home_dir + "tmp.png";
