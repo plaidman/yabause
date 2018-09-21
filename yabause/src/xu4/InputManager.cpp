@@ -28,6 +28,7 @@ using json = nlohmann::json;
 #define PADLOG 
 //#define PADLOG printf
 
+#define KEYBOARD_MASK 0x80000000
 #define SDL_MAX_AXIS_VALUE 0x110000
 #define SDL_MIN_AXIS_VALUE 0x100000
 #define SDL_HAT_VALUE 0x200000
@@ -77,22 +78,25 @@ InputManager* InputManager::getInstance()
 
 uint32_t genid( int user, int joyId, const Input & result ){
   if( result.type == TYPE_AXIS ){
-    return MAKE_PAD(user,((joyId << 18)|SDL_MAX_AXIS_VALUE|result.id));
+    return MAKE_PAD(0,((joyId << 18)|SDL_MAX_AXIS_VALUE|result.id));
   }else{
-    return MAKE_PAD(user,((joyId << 18)|result.id));
+    return MAKE_PAD(0,((joyId << 18)|result.id));
   }
 }
 
 
 uint32_t genidjson( int user, int joyId, const json & result ){
+
+  PADLOG("Keymap: user %d, joyid %d, type %s, id %d\n", 0, joyId, result["type"].get<string>().c_str(), result["id"].get<int>());
+
   if( result["type"] == "axis" ){
-    return MAKE_PAD(user,((joyId << 18)|SDL_MEDIUM_AXIS_VALUE|result["id"].get<int>() ));
+    return MAKE_PAD(0,((joyId << 18)|SDL_MEDIUM_AXIS_VALUE|result["id"].get<int>() ));
   }else if( result["type"] == "hat" ){
-    return MAKE_PAD(user, (joyId << 18) | SDL_HAT_VALUE | ( (result["value"].get<int>()) <<4));
+    return MAKE_PAD(0, (joyId << 18) | SDL_HAT_VALUE | ( (result["value"].get<int>()) <<4));
   }else if( result["type"] == "key" ){
-    return result["id"].get<int>();
+    return result["id"].get<int>() | KEYBOARD_MASK ;
   }
-  return MAKE_PAD(user,((joyId << 18)|result["id"].get<int>()));
+  return MAKE_PAD(0,((joyId << 18)|result["id"].get<int>()));
 }
 
 
@@ -770,7 +774,7 @@ int InputManager::handleJoyEvents(void) {
       else if ( buttonState == SDL_BUTTON_RELEASED )
       {
         PerKeyUp( (joyId << 18) | (i) );
-        //printf("SDL_BUTTON_RELEASED %d",(i +1));
+        //printf("SDL_BUTTON_RELEASED %d\n",(i +1));
       }
     }
 
@@ -921,11 +925,11 @@ bool InputManager::parseEvent(const SDL_Event& ev)
       SDL_PushEvent(&event);
       return false;
     }
-    PerKeyDown( ev.key.keysym.sym );
-    //printf("PerKeyDown %d", ev.key.keysym.sym);
+    PerKeyDown( ev.key.keysym.sym | KEYBOARD_MASK );
+    //printf("PerKeyDown %d\n", ev.key.keysym.sym);
     return true;
   case SDL_KEYUP:
-     PerKeyUp( ev.key.keysym.sym );
+     PerKeyUp( ev.key.keysym.sym | KEYBOARD_MASK );
     return true;
   case SDL_JOYDEVICEADDED:
     updateConfig();
