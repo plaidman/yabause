@@ -62,7 +62,8 @@ extern "C" {
 
 extern "C" {
 static char biospath[256] = "/home/pigaming/RetroPie/BIOS/saturn/bios.bin";
-static char cdpath[256] = "/home/pigaming/RetroPie/roms/saturn/nights.cue";
+//static char cdpath[256] = "/home/pigaming/RetroPie/roms/saturn/nights.cue";
+static char cdpath[256] = "/home/pigaming/RetroPie/roms/saturn/gd.cue";
 //static char cdpath[256] = "/home/pigaming/RetroPie/roms/saturn/Virtua Fighter Kids (1996)(Sega)(JP).ccd";
 static char buppath[256] = "./back.bin";
 static char mpegpath[256] = "\0";
@@ -205,7 +206,7 @@ int yabauseinit()
   //yinit.sndcoretype = SNDCORE_DUMMY;
   //yinit.cdcoretype = CDCORE_DEFAULT;
   yinit.cdcoretype = CDCORE_ISO;
-  yinit.carttype = CART_NONE;
+  yinit.carttype = CART_DRAM32MBIT;
   yinit.regionid = 0;
   if( g_emulated_bios ){
     yinit.biospath = NULL;
