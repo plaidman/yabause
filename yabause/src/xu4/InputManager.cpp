@@ -8,6 +8,11 @@
 //#include "platform.h"
 #include <iostream>
 
+#include <stdio.h>
+#include <execinfo.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "MenuScreen.h"
 extern "C"{
@@ -149,11 +154,17 @@ int mapKeys( const json & configs ){
 
     PADLOG("No joy stic is found force to keyboard\n");
     padbits = PerPadAdd(&PORTDATA1);
+    if( configs.find("player1") == configs.end() ){
+      return setDefalutSettings(padbits);
+    }
     json p = configs["player1"];
     if( p["DeviceID"].get<int>() == -1 ){
       setPlayerKeys( padbits, 0, -1, p );
       return 0;
     }
+    if( configs.find("player2") == configs.end() ){
+      return setDefalutSettings(padbits);
+    }    
     p = configs["player2"];
     if( p["DeviceID"].get<int>() == -1 ){
       setPlayerKeys( padbits, 0, -1, p );
@@ -162,77 +173,112 @@ int mapKeys( const json & configs ){
     return setDefalutSettings(padbits);
   }
 
+  if( configs.find("player1") == configs.end() ) return setDefalutSettings(padbits);
+
   json p1 = configs["player1"];
-  if( !p1.is_null() ){
-    string guid = p1["deviceGUID"];
-    int joyId = -2;
-    if( p1["DeviceID"] == -1 ){
-      PADLOG("Player1: %s is selected\n",p1["deviceName"].get<std::string>().c_str() );
-      joyId = -1;
-    }else{
-      for( int i=0; i<SDL_NumJoysticks(); i++ ){
-        char cguid[65];
-        SDL_Joystick* joy = SDL_JoystickOpen(i);
-        if( joy != NULL ){
-          SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(joy), cguid, 65);
-          if( guid == string(cguid) ){
-            SDL_JoystickID _joyId = SDL_JoystickInstanceID(joy);
-            PADLOG("Player1: %s(%d) is selected\n",p1["deviceName"].get<std::string>().c_str(), _joyId );            
-            joyId = _joyId;
+
+  try {
+    if( !p1.is_null() ){
+      string guid = p1["deviceGUID"];
+      int joyId = -2;
+      if( p1["DeviceID"] == -1 ){
+        PADLOG("Player1: %s is selected\n",p1["deviceName"].get<std::string>().c_str() );
+        joyId = -1;
+      }else{
+        for( int i=0; i<SDL_NumJoysticks(); i++ ){
+          char cguid[65];
+          SDL_Joystick* joy = SDL_JoystickOpen(i);
+          if( joy != NULL ){
+            SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(joy), cguid, 65);
+            if( guid == string(cguid) ){
+              SDL_JoystickID _joyId = SDL_JoystickInstanceID(joy);
+              PADLOG("Player1: %s(%d) is selected\n",p1["deviceName"].get<std::string>().c_str(), _joyId );            
+              joyId = _joyId;
+            }
+            if (SDL_JoystickGetAttached(joy)) {
+              SDL_JoystickClose(joy);
+            }        
           }
-          if (SDL_JoystickGetAttached(joy)) {
-            SDL_JoystickClose(joy);
-          }        
         }
       }
-    }
-    if( joyId != -2 ) {
-      if( p1["padmode"].is_null() || p1["padmode"] == 0 ){
-        padbits = PerPadAdd(&PORTDATA1);
-        PADLOG("Player1: Switch to Pad mode\n");
-      }else{
-        padbits = Per3DPadAdd(&PORTDATA1);
-        PADLOG("Player1: Switch to Analog mode\n");
+      if( joyId != -2 ) {
+        if( p1["padmode"].is_null() || p1["padmode"] == 0 ){
+          padbits = PerPadAdd(&PORTDATA1);
+          PADLOG("Player1: Switch to Pad mode\n");
+        }else{
+          padbits = Per3DPadAdd(&PORTDATA1);
+          PADLOG("Player1: Switch to Analog mode\n");
+        }
+        setPlayerKeys( padbits, user, joyId, p1 );
       }
-      setPlayerKeys( padbits, user, joyId, p1 );
     }
+  }catch( json::type_error & e ){
+         std::cout << "message: " << e.what() << '\n'
+                   << "exception id: " << e.id << std::endl;
+/*
+        void *array[10];
+        size_t size;
+        size = backtrace(array, 10);
+        backtrace_symbols_fd(array, size, STDERR_FILENO);
+*/
+        void *trace_elems[20];
+        int trace_elem_count(backtrace(trace_elems, 20));
+        char **stack_syms(backtrace_symbols(trace_elems, trace_elem_count));
+        for(int i=0 ; i != trace_elem_count; ++i)
+        {
+            cout << stack_syms[i] << "\n";
+        }
+        free(stack_syms);
+
+        return -1;
   }
 
-  json p2 = configs["player2"];
-  user = 1;
-  if( !p2.is_null() ){
-    string guid = p2["deviceGUID"];
-    int joyId = -2;
-    if( p2["DeviceID"] == -1 ){
-      PADLOG("Player2: %s is selected\n",p2["deviceName"].get<std::string>().c_str() );
-      joyId = -1;
-    }else{
-      for( int i=0; i<SDL_NumJoysticks(); i++ ){
-        char cguid[65];
-        SDL_Joystick* joy = SDL_JoystickOpen(i);
-        if( joy != NULL ){
-          SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(joy), cguid, 65);
-          if( guid == string(cguid) ){
-            SDL_JoystickID _joyId = SDL_JoystickInstanceID(joy);
-            PADLOG("Player2: %s(%d) is selected\n",p2["deviceName"].get<std::string>().c_str(), _joyId );
-            joyId = _joyId;
+  // Is there player2 settings?
+  if( configs.find("player2") == configs.end() ) return 0;
+
+  json p2;
+  p2 = configs["player2"];
+
+  try {
+    user = 1;
+    if( !p2.is_null() ){
+      string guid = p2["deviceGUID"];
+      int joyId = -2;
+      if( p2["DeviceID"] == -1 ){
+        PADLOG("Player2: %s is selected\n",p2["deviceName"].get<std::string>().c_str() );
+        joyId = -1;
+      }else{
+        for( int i=0; i<SDL_NumJoysticks(); i++ ){
+          char cguid[65];
+          SDL_Joystick* joy = SDL_JoystickOpen(i);
+          if( joy != NULL ){
+            SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(joy), cguid, 65);
+            if( guid == string(cguid) ){
+              SDL_JoystickID _joyId = SDL_JoystickInstanceID(joy);
+              PADLOG("Player2: %s(%d) is selected\n",p2["deviceName"].get<std::string>().c_str(), _joyId );
+              joyId = _joyId;
+            }
+            if (SDL_JoystickGetAttached(joy)) {
+              SDL_JoystickClose(joy);
+            }         
           }
-          if (SDL_JoystickGetAttached(joy)) {
-            SDL_JoystickClose(joy);
-          }         
         }
       }
-    }
-    if( joyId != -2 ) {
-      if( p2["padmode"].is_null() || p2["padmode"] == 0 ){
-        padbits = PerPadAdd(&PORTDATA2);
-        PADLOG("Player2: Switch to Pad mode\n");
-      }else{
-        padbits = Per3DPadAdd(&PORTDATA2);
-        PADLOG("Player2: Switch to Analog mode\n");
+      if( joyId != -2 ) {
+        if( p2["padmode"].is_null() || p2["padmode"] == 0 ){
+          padbits = PerPadAdd(&PORTDATA2);
+          PADLOG("Player2: Switch to Pad mode\n");
+        }else{
+          padbits = Per3DPadAdd(&PORTDATA2);
+          PADLOG("Player2: Switch to Analog mode\n");
+        }
+        setPlayerKeys( padbits, user, joyId, p2 );
       }
-      setPlayerKeys( padbits, user, joyId, p2 );
     }
+  }catch( json::type_error & e){
+         std::cout << "message: " << e.what() << '\n'
+                   << "exception id: " << e.id << std::endl;
+        return -1;
   }
   return 0;
 }
@@ -530,7 +576,12 @@ void InputManager::init( const std::string & fname )
 
   mapKeys(j);
 
-  select_button_ = j["player1"]["select"]["id"];
+  try{
+    select_button_ = j["player1"]["select"]["id"];
+  }catch( json::exception& e ){
+         std::cout << "Select button is not find\n" << "message: " << e.what() << '\n'
+                   << "exception id: " << e.id << std::endl;
+  }
 
 /*
   // first, open all currently present joysticks
