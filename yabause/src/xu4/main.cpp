@@ -62,8 +62,8 @@ extern "C" {
 
 extern "C" {
 static char biospath[256] = "/home/pigaming/RetroPie/BIOS/saturn/bios.bin";
-//static char cdpath[256] = "/home/pigaming/RetroPie/roms/saturn/nights.cue";
-static char cdpath[256] = "/home/pigaming/RetroPie/roms/saturn/gd.cue";
+static char cdpath[256] = "/home/pigaming/RetroPie/roms/saturn/nights.cue";
+//static char cdpath[256] = "/home/pigaming/RetroPie/roms/saturn/gd.cue";
 //static char cdpath[256] = "/home/pigaming/RetroPie/roms/saturn/Virtua Fighter Kids (1996)(Sega)(JP).ccd";
 static char buppath[256] = "./back.bin";
 static char mpegpath[256] = "\0";
@@ -235,7 +235,6 @@ int yabauseinit()
     return -1;
   }
 
-  inputmng->init(g_keymap_filename);
   padmode = inputmng->getCurrentPadMode( 0 );
   OSDInit(0);
   OSDChangeCore(OSDCORE_NANOVG);
@@ -260,7 +259,7 @@ int main(int argc, char** argv)
   std::string bckup_dir = home_dir + "backup.bin";
   strcpy( buppath, bckup_dir.c_str() );
 
-  g_keymap_filename = home_dir + "keymap.json";
+  g_keymap_filename = home_dir + "keymapv2.json";
 
   std::string current_exec_name = argv[0]; // Name of the current exec program
   std::vector<std::string> all_args;
@@ -347,7 +346,9 @@ int main(int argc, char** argv)
   printf("version string: \"%s\"\n", glGetString(GL_VERSION));
   printf("Extentions: %s\n",glGetString(GL_EXTENSIONS));
 
-  menu = new MenuScreen(wnd,width,height);
+  inputmng->init(g_keymap_filename);
+  menu = new MenuScreen(wnd,width,height, g_keymap_filename);
+  menu->setConfigFile(g_keymap_filename);  
 
   if( yabauseinit() == -1 ) {
       printf("Fail to yabauseinit Bye! (%s)", SDL_GetError() );
@@ -397,7 +398,9 @@ int main(int argc, char** argv)
   Uint32  evToggleFrameSkip = SDL_RegisterEvents(1);
   menu->setToggleFrameSkip(evToggleFrameSkip);
 
-  
+  Uint32  evUpdateConfig = SDL_RegisterEvents(1);
+  menu->setUpdateConfig(evUpdateConfig);
+
   bool menu_show = false;
   std::string tmpfilename = home_dir + "tmp.png";
 
@@ -419,7 +422,9 @@ int main(int argc, char** argv)
         SDL_Quit();
         return 0;
       }
-
+      else if( e.type == evUpdateConfig ){
+          inputmng->updateConfig();
+      }
       else if(e.type == evToggleMenu){
         if( menu_show ){
           menu_show = false;

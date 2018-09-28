@@ -32,8 +32,8 @@ public:
     ComboBox(Widget *parent, const std::vector<std::string> &items,
              const std::vector<std::string> &itemsShort);
 
-    std::function<void(int)> callback() const { return mCallback; }
-    void setCallback(const std::function<void(int)> &callback) { mCallback = callback; }
+    std::function<void(int)> callbackSelect() const { return mCallbackSelect; }
+    void setCallbackSelect(const std::function<void(int)> &callback) { mCallbackSelect = callback; }
 
     int selectedIndex() const { return mSelectedIndex; }
     void setSelectedIndex(int idx);
@@ -51,7 +51,7 @@ public:
     virtual bool load(Serializer &s);
 protected:
     std::vector<std::string> mItems, mItemsShort;
-    std::function<void(int)> mCallback;
+    std::function<void(int)> mCallbackSelect;
     int mSelectedIndex;
 };
 

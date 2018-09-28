@@ -24,15 +24,34 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 #include "nanogui/screen.h"
 #include "nanovg.h"
 #include <string.h>
+#include <stack>
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+
+
+#include "InputConfig.h"
 
 using namespace nanogui;
 
+class InputManager;
+
+struct PreMenuInfo {
+    Widget* window = nullptr;
+    Widget* button = nullptr;
+};
 
 class MenuScreen : public nanogui::Screen
 {
 public:
-    Widget *tools;
-    Button *bAnalog;
+    //Widget *activeWindow = nullptr;
+    Widget *tools = nullptr;
+    PopupButton *player1;
+    ComboBox * p1cb = nullptr;
+    PopupButton *player2 = nullptr;
+    ComboBox * p2cb = nullptr;
+    Button *bAnalog = nullptr;
+
+    std::map<SDL_JoystickID, SDL_Joystick*> joysticks_;
 
     int imageid_ = 0;
     int imgw_ = 0;
@@ -41,9 +60,10 @@ public:
     void setBackGroundImage( const std::string & fname );
 
     nanogui::Window *window;
+    nanogui::Window *swindow;
     
     
-    MenuScreen( SDL_Window* pwindow, int rwidth, int rheight );
+    MenuScreen( SDL_Window* pwindow, int rwidth, int rheight, const std::string & fname  );
     virtual bool keyboardEvent( std::string & keycode , int scancode, int action, int modifiers);
     virtual void draw(NVGcontext *ctx);
 
@@ -58,5 +78,35 @@ public:
 
 	uint32_t toggile_frame_skip_ = 0;
 	void setToggleFrameSkip( uint32_t type ){ toggile_frame_skip_ = type; }
+
+	uint32_t update_config_ = 0;
+	void setUpdateConfig( uint32_t type ){ update_config_ = type; }
+
+
+    void showInputCheckDialog( const std::string & key );
+
+    void setupPlayerPsuhButton( int user_index, PopupButton *player, const std::string & label, ComboBox **cb );
+
+    int onRawInputEvent( InputManager & imp, const std::string & deviceguid, const std::string & type, int id, int value );
+
+    void setCurrentInputDevices( std::map<SDL_JoystickID, SDL_Joystick*> & joysticks );
+
+    std::stack<PreMenuInfo> menu_stack;
+    void pushActiveMenu( Widget *active,  Widget * button );
+    void popActiveMenu();
+    Widget * getActiveMenu();
+
+    void setConfigFile( const std::string & fname ){
+        config_file_ = fname;
+    }
+public:  // events
+    int onBackButtonPressed();    
+    int onShow();    
+
+protected:
+    std::string cuurent_deviceguid_;
+    std::string current_user_;    
+    std::string current_key_; 
+    std::string config_file_;
 
 };

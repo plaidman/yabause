@@ -159,7 +159,9 @@ int mapKeys( const json & configs ){
     }
     json p = configs["player1"];
     if( p["DeviceID"].get<int>() == -1 ){
-      setPlayerKeys( padbits, 0, -1, p );
+      std::string guid = p["deviceGUID"];
+      json dev = configs[ guid ];
+      setPlayerKeys( padbits, 0, -1, dev );
       return 0;
     }
     if( configs.find("player2") == configs.end() ){
@@ -167,6 +169,8 @@ int mapKeys( const json & configs ){
     }    
     p = configs["player2"];
     if( p["DeviceID"].get<int>() == -1 ){
+      std::string guid = p["deviceGUID"];
+      json dev = configs[ guid ];
       setPlayerKeys( padbits, 0, -1, p );
       return 0;
     }    
@@ -209,7 +213,9 @@ int mapKeys( const json & configs ){
           padbits = Per3DPadAdd(&PORTDATA1);
           PADLOG("Player1: Switch to Analog mode\n");
         }
-        setPlayerKeys( padbits, user, joyId, p1 );
+        string guid = p1["deviceGUID"];
+        json dev = configs[ guid ];
+        setPlayerKeys( padbits, user, joyId, dev );
       }
     }
   }catch( json::type_error & e ){
@@ -272,7 +278,9 @@ int mapKeys( const json & configs ){
           padbits = Per3DPadAdd(&PORTDATA2);
           PADLOG("Player2: Switch to Analog mode\n");
         }
-        setPlayerKeys( padbits, user, joyId, p2 );
+        string guid = p2["deviceGUID"];
+        json dev = configs[ guid ];
+        setPlayerKeys( padbits, user, joyId, dev );
       }
     }
   }catch( json::type_error & e){
@@ -408,6 +416,7 @@ const std::string input_types[] = {
   "key"
 };
 
+
 int getPlayerJsonFromInputConfig( int joy, InputConfig * inputconfig, json & player ) {
   
   if( inputconfig == NULL ){
@@ -417,10 +426,13 @@ int getPlayerJsonFromInputConfig( int joy, InputConfig * inputconfig, json & pla
   char p[64];
   sprintf(p,"player%d",joy+1);
 
+  std::string guid;
+
   player[p]["padmode"] = 0;
   player[p]["DeviceID"]   = inputconfig->getDeviceId();
   player[p]["deviceName"] = inputconfig->getDeviceName();
   player[p]["deviceGUID"] = inputconfig->getDeviceGUIDString();
+  guid = inputconfig->getDeviceGUIDString();
 
   // Keyborad
   if( inputconfig->getDeviceId() == -1 ){ 
@@ -429,62 +441,76 @@ int getPlayerJsonFromInputConfig( int joy, InputConfig * inputconfig, json & pla
 
   Input result;
   inputconfig->getInputByName("a", &result);
-  player[p]["a"] ={ { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
+  player[guid]["a"] ={ { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
 
   inputconfig->getInputByName("b", &result);
-  player[p]["b"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
+  player[guid]["b"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
 
   inputconfig->getInputByName("rightshoulder", &result);
-  player[p]["c"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } } ;
+  player[guid]["c"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } } ;
 
   inputconfig->getInputByName("x", &result);
-  player[p]["x"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
+  player[guid]["x"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
 
   inputconfig->getInputByName("y", &result);
-  player[p]["y"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
+  player[guid]["y"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
 
   inputconfig->getInputByName("leftshoulder", &result);
-  player[p]["z"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
+  player[guid]["z"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
 
   inputconfig->getInputByName("lefttrigger", &result);
-  player[p]["l"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } } ;
+  player[guid]["l"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } } ;
 
   inputconfig->getInputByName("righttrigger", &result);
-  player[p]["r"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
+  player[guid]["r"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
 
   inputconfig->getInputByName("up", &result);
-  player[p]["up"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
+  player[guid]["up"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
 
   inputconfig->getInputByName("down", &result);
-  player[p]["down"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
+  player[guid]["down"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
 
   inputconfig->getInputByName("left", &result);
-  player[p]["left"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
+  player[guid]["left"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
 
   inputconfig->getInputByName("right", &result);
-  player[p]["right"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
+  player[guid]["right"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
 
   //inputconfig->getInputByName("leftanalogup", &result);
-  player[p]["analogx"] = { { "type", "axis" },{ "id", 0 },{ "value", 0 } };
+  player[guid]["analogx"] = { { "type", "axis" },{ "id", 0 },{ "value", 0 } };
 
   //inputconfig->getInputByName("leftanalogdown", &result);
-  player[p]["analogy"] = { { "type", "axis" },{ "id", 1 },{ "value", 0 } };
+  player[guid]["analogy"] = { { "type", "axis" },{ "id", 1 },{ "value", 0 } };
 
   //inputconfig->getInputByName("leftanalogleft", &result);
-  player[p]["analogleft"] = { { "type", "axis" },{ "id", 4 },{ "value", 0 } };
+  player[guid]["analogleft"] = { { "type", "axis" },{ "id", 4 },{ "value", 0 } };
 
   //inputconfig->getInputByName("leftanalogright", &result);
-  player[p]["analogright"] = { { "type", "axis" },{ "id", 5 },{ "value", 0 } };
+  player[guid]["analogright"] = { { "type", "axis" },{ "id", 5 },{ "value", 0 } };
 
   inputconfig->getInputByName("start", &result);
-  player[p]["start"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
+  player[guid]["start"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
 
   inputconfig->getInputByName("select", &result);
-  player[p]["select"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
+  player[guid]["select"] = { { "type", input_types[result.type] },{ "id", result.id },{ "value", result.value } };
 
 
   return 0;
 
+}
+
+void InputManager::saveInputConfig( const std::string & guid , const std::string & key , const std::string & type, int id , int value){
+  json j;
+  
+  std::ifstream fin( config_fname_ );
+  fin >> j;
+  fin.close();
+
+  j[guid][key] = { { "type", type },{ "id", id },{ "value", value } };
+
+  std::ofstream out( config_fname_ );
+  out << j.dump(2);
+  out.close();
 }
 
 int InputManager::convertFromEmustationFile( const std::string & fname ){
@@ -506,24 +532,24 @@ int InputManager::convertFromEmustationFile( const std::string & fname ){
     }else{
 
       // Set Defalut Key
-      joystics["Player1"]["deviceID"]= 0;
+      joystics["Player1"]["deviceID"]= -1;
       joystics["Player1"]["padmode"] = 0;
       joystics["Player1"]["deviceGUID"] = "-1";
       joystics["Player1"]["deviceName"] = "Keyboard";
-      joystics["Player1"]["a"] ={ { "type", "key" },{ "id", 122 },{ "value", 0 } };
-      joystics["Player1"]["b"] ={ { "type", "key" },{ "id", 120 },{ "value", 0 } };
-      joystics["Player1"]["c"] ={ { "type", "key" },{ "id", 199 },{ "value", 0 } };
-      joystics["Player1"]["x"] ={ { "type", "key" },{ "id", 97 },{ "value", 0 } };
-      joystics["Player1"]["y"] ={ { "type", "key" },{ "id", 115 },{ "value", 0 } };
-      joystics["Player1"]["z"] ={ { "type", "key" },{ "id", 133 },{ "value", 0 } };
-      joystics["Player1"]["l"] ={ { "type", "key" },{ "id", 101 },{ "value", 0 } };
-      joystics["Player1"]["r"] ={ { "type", "key" },{ "id", 114 },{ "value", 0 } };
-      joystics["Player1"]["start"] ={ { "type", "key" },{ "id", 13 },{ "value", 0 } };
-      joystics["Player1"]["select"] ={ { "type", "key" },{ "id", 93 },{ "value", 0 } };
-      joystics["Player1"]["up"] ={ { "type", "key" },{ "id", 1073741906 },{ "value", 0 } };
-      joystics["Player1"]["down"] ={ { "type", "key" },{ "id", 1073741905 },{ "value", 0 } };
-      joystics["Player1"]["left"] ={ { "type", "key" },{ "id", 1073741904 },{ "value", 0 } };
-      joystics["Player1"]["right"] ={ { "type", "key" },{ "id", 1073741903 },{ "value", 0 } };
+      joystics["-1"]["a"] ={ { "type", "key" },{ "id", 122 },{ "value", 0 } };
+      joystics["-1"]["b"] ={ { "type", "key" },{ "id", 120 },{ "value", 0 } };
+      joystics["-1"]["c"] ={ { "type", "key" },{ "id", 199 },{ "value", 0 } };
+      joystics["-1"]["x"] ={ { "type", "key" },{ "id", 97 },{ "value", 0 } };
+      joystics["-1"]["y"] ={ { "type", "key" },{ "id", 115 },{ "value", 0 } };
+      joystics["-1"]["z"] ={ { "type", "key" },{ "id", 133 },{ "value", 0 } };
+      joystics["-1"]["l"] ={ { "type", "key" },{ "id", 101 },{ "value", 0 } };
+      joystics["-1"]["r"] ={ { "type", "key" },{ "id", 114 },{ "value", 0 } };
+      joystics["-1"]["start"] ={ { "type", "key" },{ "id", 13 },{ "value", 0 } };
+      joystics["-1"]["select"] ={ { "type", "key" },{ "id", 93 },{ "value", 0 } };
+      joystics["-1"]["up"] ={ { "type", "key" },{ "id", 1073741906 },{ "value", 0 } };
+      joystics["-1"]["down"] ={ { "type", "key" },{ "id", 1073741905 },{ "value", 0 } };
+      joystics["-1"]["left"] ={ { "type", "key" },{ "id", 1073741904 },{ "value", 0 } };
+      joystics["-1"]["right"] ={ { "type", "key" },{ "id", 1073741903 },{ "value", 0 } };
     }
 
   }else{
@@ -564,7 +590,6 @@ void InputManager::init( const std::string & fname )
 
   config_fname_ = fname;
   if(!fs::exists(fname)){
-
     if( convertFromEmustationFile(fname) != 0 ){
       return;
     }
@@ -577,7 +602,8 @@ void InputManager::init( const std::string & fname )
   mapKeys(j);
 
   try{
-    select_button_ = j["player1"]["select"]["id"];
+    std::string guid = j["player1"]["deviceGUID"];
+    select_button_ = j[guid]["select"]["id"];
   }catch( json::exception& e ){
          std::cout << "Select button is not find\n" << "message: " << e.what() << '\n'
                    << "exception id: " << e.id << std::endl;
@@ -760,7 +786,65 @@ InputConfig* InputManager::getInputConfigByDevice(int device)
 
 int InputManager::handleJoyEventsMenu(void) {
 
+  int i;
+  int j;
+  //SDL_Joystick* joy;
+  Sint16 cur;
+  Uint8 buttonState;
+  Uint8 newHatState;
+  Uint8 oldHatState;
+  int hatValue;
+
+  
+  for( auto it = mJoysticks.begin(); it != mJoysticks.end() ; ++it ) {
+
+    SDL_Joystick* joy = it->second;
+    SDL_JoystickID joyId = SDL_JoystickInstanceID(joy);
+    char guid[65];
+    SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(joy), guid, 65);
+
+
+    for ( i = 0; i < SDL_JoystickNumAxes( joy ); i++ )
+    {
+      cur = SDL_JoystickGetAxis( joy, i );
+      if ( cur < -SDL_MEDIUM_AXIS_VALUE )
+      {
+        //menu_layer_->onRawInputEvent(*this, guid, "analog", i, -1);
+      }
+      else if ( cur > SDL_MEDIUM_AXIS_VALUE )
+      {
+        menu_layer_->onRawInputEvent(*this, guid, "analog", i, 1);
+      }      
+    }
+    
+    for ( i = 0; i < SDL_JoystickNumHats( joy ); i++ )
+    {
+      newHatState = SDL_JoystickGetHat( joy, i );
+      oldHatState = mHatValues[ joyId ][ i ];
+
+      for ( j = 0 ; j < SDL_HAT_VALUES_NUM; j++ )
+      {
+        hatValue = SDL_HAT_VALUES[ j ];
+        if ( oldHatState & hatValue && ~newHatState & hatValue )
+        {
+        }
+      }
+      for ( j = 0 ; j < SDL_HAT_VALUES_NUM; j++ )
+      {
+        hatValue = SDL_HAT_VALUES[ j ];
+        if ( ~oldHatState & hatValue && newHatState & hatValue )
+        {
+          if( menu_layer_->onRawInputEvent(*this, guid, "hat", i, hatValue) != -1 ){
+            return 0;
+          }
+        }
+      }
+      mHatValues[ joyId ][ i ] = newHatState;
+    }
+  }
+  return 0;
 }
+
 
 
 int InputManager::handleJoyEvents(void) {
@@ -863,6 +947,13 @@ int InputManager::handleJoyEvents(void) {
 
 static const int DEADZONE = 23000;
 
+void InputManager::setMenuLayer( MenuScreen * menu_layer ){
+  menu_layer_ = menu_layer;
+  if( menu_layer_ != nullptr ){
+    menu_layer_->setCurrentInputDevices( mJoysticks );
+  }
+}
+
 bool InputManager::parseEventMenu(const SDL_Event& ev ){
   std::vector<std::string> evstr;
   switch(ev.type)
@@ -897,16 +988,29 @@ bool InputManager::parseEventMenu(const SDL_Event& ev ){
       if( evstr.size() ) {
         menu_layer_->keyboardEvent(evstr[0],0,ev.jbutton.state == SDL_PRESSED,0);
       }
-    if( SDL_JOYBUTTONUP == ev.type && (ev.jbutton.button == select_button_ ||evstr[0]=="b")  ){
-      SDL_Event event = {};
-      event.type = showmenu_;
-      event.user.code = 0;
-      event.user.data1 = 0;
-      event.user.data2 = 0;
-      SDL_PushEvent(&event);
+      {
+        char guid[65];
+        SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(mJoysticks[ev.jbutton.which]), guid, 65);
+        if( SDL_JOYBUTTONDOWN == ev.type ){
+          if( menu_layer_->onRawInputEvent(*this,guid,"button",ev.jbutton.button,1) != -1 ){
+            return true;
+          }
+        }
+      }
+    if( SDL_JOYBUTTONDOWN == ev.type && (ev.jbutton.button == select_button_ ||evstr[0]=="b")  ){
+      printf("press back\n");
+      if( menu_layer_->onBackButtonPressed() == 0 ){
+        SDL_Event event = {};
+        event.type = showmenu_;
+        event.user.code = 0;
+        event.user.data1 = 0;
+        event.user.data2 = 0;
+        SDL_PushEvent(&event);
+      }
     }
       return true;
   }
+  break;
   case SDL_JOYHATMOTION:{
       InputConfig* cfg = getInputConfigByDevice(ev.jhat.which);
       evstr = cfg->getMappedTo( Input(ev.jhat.which, TYPE_HAT, ev.jhat.hat, ev.jhat.value, false));
@@ -915,9 +1019,12 @@ bool InputManager::parseEventMenu(const SDL_Event& ev ){
       }
       return true;
   }
+  break;
   case SDL_KEYDOWN:
     if(ev.key.repeat)
       return false;  
+
+    menu_layer_->onRawInputEvent(*this,"-1", "key",ev.key.keysym.sym,1);
 
     if( mKeyboardInputConfig )  {
       evstr = mKeyboardInputConfig->getMappedTo(Input(DEVICE_KEYBOARD, TYPE_KEY, ev.key.keysym.sym, 1, false));
@@ -928,6 +1035,7 @@ bool InputManager::parseEventMenu(const SDL_Event& ev ){
     }else{
       return false;
     }
+
     break;
   case SDL_KEYUP:
     if( mKeyboardInputConfig )  {
@@ -1086,7 +1194,7 @@ void InputManager::writeDeviceConfig(InputConfig* config)
 
 std::string InputManager::getConfigPath()
 {
-  std::string path = "/home/pigaming"; //getHomePath();
+  std::string path = getenv("HOME");
   path += "/.emulationstation/es_temporaryinput.cfg";
   return path;
 }

@@ -65,9 +65,7 @@ public:
 	int handleJoyEventsMenu(void);
 	bool parseEventMenu(const SDL_Event& ev );
 
-	void setMenuLayer( MenuScreen * menu_layer ){
-		menu_layer_ = menu_layer;
-	}
+	void setMenuLayer( MenuScreen * menu_layer );
 
 	uint32_t select_button_ = 0;
 	uint32_t showmenu_ = 0;
@@ -78,6 +76,8 @@ public:
 	std::string config_fname_;
 
 	void updateConfig();
+
+	void saveInputConfig( const std::string & player , const std::string & key , const std::string & type, int id , int value);
 	
 };
 
