@@ -149,6 +149,7 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
 
   std::string username;
 
+
   json j;
   string selguid="BADGUID";
   int padmode=0;
@@ -161,8 +162,10 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
     fin.close();
     ss << "player" << (user_index+1);
     userid = ss.str();
-    selguid = j[userid]["deviceGUID"];
-    padmode = j[userid]["padmode"];
+    if( j.find(userid) != j.end() ) {
+      selguid = j[userid]["deviceGUID"];
+      padmode = j[userid]["padmode"];
+    }
   }catch ( json::exception& e ){
 
   }
@@ -193,6 +196,7 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
   cb->setCallback([this,cbpopup,cb]() {       
     pushActiveMenu(cbpopup, cb );
   });
+  
   cb->setCallbackSelect([this, userid]( int idx ) {
       popActiveMenu();
 
@@ -220,14 +224,15 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
       std::ifstream fin( this->config_file_ );
       fin >> j;
       fin.close();
-            
+      //if( j.find(userid) == j.end() ) {
+      //  return;
+      //}            
       j[userid]["deviceGUID"] = cuurent_deviceguid_;
       j[userid]["DeviceID"]   = joyId;
       j[userid]["deviceName"] = device_name;
-
       std::ofstream out(this->config_file_);
       out << j.dump(2);
-      out.close();
+      out.close();        
 
       SDL_Event event = {};
       event.type = this->update_config_;
@@ -238,7 +243,6 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
 
   });
 
-  
 
   *cbo = cb;
 
@@ -256,24 +260,33 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
     std::ifstream fin( this->config_file_ );
     fin >> j;
     fin.close();
-    if( state )
-      j[userid]["padmode"] = 1;
-    else
-      j[userid]["padmode"] = 0;
+    //if( j.find(userid) == j.end() ) {
+    //  return;
+    //}
 
-    std::ofstream out(this->config_file_);
-    out << j.dump(2);
-    out.close();
+    try{
+      if( state )
+        j[userid]["padmode"] = 1;
+      else
+        j[userid]["padmode"] = 0;
 
-    SDL_Event event = {};
-    event.type = this->update_config_;
-    event.user.code = 0;
-    event.user.data1 = 0;
-    event.user.data2 = 0;
-    SDL_PushEvent(&event);   
+      std::ofstream out(this->config_file_);
+      out << j.dump(2);
+      out.close();
+
+      SDL_Event event = {};
+      event.type = this->update_config_;
+      event.user.code = 0;
+      event.user.data1 = 0;
+      event.user.data2 = 0;
+      SDL_PushEvent(&event);   
+    }catch ( json::exception& e ){
+
+    }
 
   }); 
 
+  
   player->setCallback([this,popup,player,user_index]() {      
     pushActiveMenu(popup,player); 
     std::stringstream s ;
@@ -495,23 +508,34 @@ void MenuScreen::setCurrentInputDevices( std::map<SDL_JoystickID, SDL_Joystick*>
   }  
   itemsShort.push_back("KeyBoard");
   items.push_back("-1");
+  itemsShort.push_back("Disable");
+  items.push_back("-2");
+
 
   if( p1cb != nullptr ) { 
     p1cb->setItems(itemsShort,itemsShort); 
     userid = "player1";
-    selguid = j[userid]["deviceGUID"];
+    if( j.find(userid) != j.end() ) {
+      selguid = j[userid]["deviceGUID"];
+    }else{
+      selguid = "-2";
+    }
     for( int i=0; i<items.size(); i++  ){
-      if( items[i] == selguid ){
-        p1cb->setSelectedIndex(i);
-        break;
-      }
+       if( items[i] == selguid ){
+         p1cb->setSelectedIndex(i);
+         break;
+       }
     }
   }
 
   if( p2cb != nullptr ) { 
     p2cb->setItems(itemsShort,itemsShort); 
     userid = "player2";
-    selguid = j[userid]["deviceGUID"];
+    if( j.find(userid) != j.end() ) {
+      selguid = j[userid]["deviceGUID"];
+    }else{
+      selguid = "-2";
+    }
     for( int i=0; i<items.size(); i++  ){
       if( items[i] == selguid ){
         p2cb->setSelectedIndex(i);
