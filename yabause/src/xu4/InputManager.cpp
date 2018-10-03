@@ -813,7 +813,7 @@ int InputManager::handleJoyEventsMenu(void) {
       }
       else if ( cur > SDL_MEDIUM_AXIS_VALUE )
       {
-        menu_layer_->onRawInputEvent(*this, guid, "analog", i, 1);
+        menu_layer_->onRawInputEvent(*this, guid, "axis", i, 1);
       }      
     }
     

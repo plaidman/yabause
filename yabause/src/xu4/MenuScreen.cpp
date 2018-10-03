@@ -405,6 +405,18 @@ int MenuScreen::onRawInputEvent( InputManager & imp, const std::string & deviceg
     cout << "deviceguid = " << deviceguid << " vs cuurent_deviceguid = " << cuurent_deviceguid_ << endl;
     return -1; 
   }
+
+  // wait for key input?
+  if( current_key_.find("analog") == std::string::npos ){
+    if( type == "axis" ){
+      return -1;
+    }
+  }else{
+    if( type != "axis" ){
+      return -1;
+    }
+  }
+
   imp.saveInputConfig( deviceguid , current_key_, type, id, value);
   swindow->dispose();
   swindow = nullptr;
