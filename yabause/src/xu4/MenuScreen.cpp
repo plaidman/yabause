@@ -141,6 +141,29 @@ void MenuScreen::showInputCheckDialog( const std::string & key ){
     current_key_ = key;
 }
 
+void MenuScreen::getSelectedGUID( int user_index, std::string & selguid ){
+
+  selguid = "-1";
+  json j;
+  std::stringstream ss;
+  std::string userid;
+  
+  try{
+    std::ifstream fin( config_file_ );
+    fin >> j;
+    fin.close();
+    ss << "player" << (user_index+1);
+    userid = ss.str();
+    if( j.find(userid) != j.end() ) {
+      selguid = j[userid]["deviceGUID"];
+    }
+  }catch ( json::exception& e ){
+
+  }
+
+}
+
+
 void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, const std::string & label, ComboBox **cbo ){
   player->setFixedWidth(248);
   Popup *popup = player->popup();     
@@ -298,91 +321,91 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
 
   Button * b;
   b = new Button(popup, "UP");
-  b->setCallback([this, selguid]{
-    this->cuurent_deviceguid_ = selguid;
+  b->setCallback([this, user_index ]{
+    getSelectedGUID( user_index, this->cuurent_deviceguid_ );
     showInputCheckDialog("up");
   });
   b = new Button(popup, "DOWN");
-  b->setCallback([this, selguid]{
-    this->cuurent_deviceguid_ = selguid;
+  b->setCallback([this, user_index]{
+    getSelectedGUID( user_index, this->cuurent_deviceguid_ );
     showInputCheckDialog("down");
   });
   b = new Button(popup, "LEFT");
-  b->setCallback([this, selguid]{
-    this->cuurent_deviceguid_ = selguid;
+  b->setCallback([this, user_index]{
+    getSelectedGUID( user_index, this->cuurent_deviceguid_ );
     showInputCheckDialog("left");
   });
   b = new Button(popup, "RIGHT");
-  b->setCallback([this, selguid]{
-    this->cuurent_deviceguid_ = selguid;
+  b->setCallback([this, user_index]{
+    getSelectedGUID( user_index, this->cuurent_deviceguid_ );
     showInputCheckDialog("right");
   });
 
   b = new Button(popup, "START");
-  b->setCallback([this, selguid]{
-    this->cuurent_deviceguid_ = selguid;
+  b->setCallback([this, user_index]{
+    getSelectedGUID( user_index, this->cuurent_deviceguid_ );
     showInputCheckDialog("start");
   });
   b = new Button(popup, "A");
-  b->setCallback([this, selguid]{
-    this->cuurent_deviceguid_ = selguid;
+  b->setCallback([this, user_index]{
+    getSelectedGUID( user_index, this->cuurent_deviceguid_ );
     showInputCheckDialog("a");
   }); 
 
   b = new Button(popup, "B");
-  b->setCallback([this, selguid]{
-    this->cuurent_deviceguid_ = selguid;
+  b->setCallback([this, user_index]{
+    getSelectedGUID( user_index, this->cuurent_deviceguid_ );
     showInputCheckDialog("b");
   }); 
 
   b = new Button(popup, "C");
-  b->setCallback([this, selguid]{
-    this->cuurent_deviceguid_ = selguid;
+  b->setCallback([this, user_index]{
+    getSelectedGUID( user_index, this->cuurent_deviceguid_ );
     showInputCheckDialog("c");
   });   
   b = new Button(popup, "X");
-  b->setCallback([this, selguid]{
-    this->cuurent_deviceguid_ = selguid;
+  b->setCallback([this, user_index]{
+    getSelectedGUID( user_index, this->cuurent_deviceguid_ );
     showInputCheckDialog("x");
   });   
   b = new Button(popup, "Y");
-  b->setCallback([this, selguid]{
-    this->cuurent_deviceguid_ = selguid;
+  b->setCallback([this, user_index]{
+    getSelectedGUID( user_index, this->cuurent_deviceguid_ );
     showInputCheckDialog("y");
   });     
   b = new Button(popup, "Z");
-  b->setCallback([this, selguid]{
-    this->cuurent_deviceguid_ = selguid;
+  b->setCallback([this, user_index]{
+    getSelectedGUID( user_index, this->cuurent_deviceguid_ );
     showInputCheckDialog("z");
   });     
   b = new Button(popup, "L");
-  b->setCallback([this, selguid]{
-    this->cuurent_deviceguid_ = selguid;
+  b->setCallback([this, user_index]{
+    getSelectedGUID( user_index, this->cuurent_deviceguid_ );
     showInputCheckDialog("l");
   });   
   b = new Button(popup, "R");
-  b->setCallback([this, selguid]{
-    this->cuurent_deviceguid_ = selguid;
+  b->setCallback([this, user_index]{
+    getSelectedGUID( user_index, this->cuurent_deviceguid_ );
     showInputCheckDialog("r");
   });   
   b = new Button(popup, "Analog X");
-  b->setCallback([this, selguid]{
-    this->cuurent_deviceguid_ = selguid;
+  b->setCallback([this, user_index]{
+    getSelectedGUID( user_index, this->cuurent_deviceguid_ );
     showInputCheckDialog("analogx");
   });   
   b = new Button(popup, "Analog Y");
-  b->setCallback([this, selguid]{
-    this->cuurent_deviceguid_ = selguid;
+  b->setCallback([this, user_index]{
+    getSelectedGUID( user_index, this->cuurent_deviceguid_ );
     showInputCheckDialog("analogy");
   });   
   b = new Button(popup, "Analog L");
-  b->setCallback([this, selguid]{
-    this->cuurent_deviceguid_ = selguid;
+  b->setCallback([this, user_index]{
+    getSelectedGUID( user_index, this->cuurent_deviceguid_ );
     showInputCheckDialog("analogl");
   });   
   b = new Button(popup, "Analog R");
-  b->setCallback([this, selguid]{
-    this->cuurent_deviceguid_ = selguid;
+  b->setCallback([this, user_index]{
+    getSelectedGUID( user_index, this->cuurent_deviceguid_ );
     showInputCheckDialog("analogr");
   });   
 }

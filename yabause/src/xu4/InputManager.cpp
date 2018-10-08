@@ -106,23 +106,23 @@ uint32_t genidjson( int user, int joyId, const json & result ){
 
 
 int setPlayerKeys( void * padbits, int user, int joyId, const json & player ){
-    PerSetKey(genidjson(user,joyId,player["up"]),PERPAD_UP, padbits);
-    PerSetKey(genidjson(user,joyId,player["down"]),PERPAD_DOWN, padbits);
-    PerSetKey(genidjson(user,joyId,player["left"]),PERPAD_LEFT, padbits);
-    PerSetKey(genidjson(user,joyId,player["right"]),PERPAD_RIGHT, padbits);
-    PerSetKey(genidjson(user,joyId,player["start"]), PERPAD_START, padbits);
-    PerSetKey(genidjson(user,joyId,player["a"]),PERPAD_A, padbits);
-    PerSetKey(genidjson(user,joyId,player["b"]),PERPAD_B, padbits);
-    PerSetKey(genidjson(user,joyId,player["c"]),PERPAD_C, padbits);
-    PerSetKey(genidjson(user,joyId,player["x"]),PERPAD_X, padbits);
-    PerSetKey(genidjson(user,joyId,player["y"]),PERPAD_Y, padbits);
-    PerSetKey(genidjson(user,joyId,player["z"]),PERPAD_Z, padbits);
-    PerSetKey(genidjson(user,joyId,player["l"]),PERPAD_LEFT_TRIGGER, padbits);
-    PerSetKey(genidjson(user,joyId,player["r"]),PERPAD_RIGHT_TRIGGER, padbits);    
-    PerSetKey(genidjson(user,joyId,player["analogx"]), PERANALOG_AXIS1, padbits);
-    PerSetKey(genidjson(user,joyId,player["analogy"]), PERANALOG_AXIS2, padbits);
-    PerSetKey(genidjson(user,joyId,player["analogleft"]), PERANALOG_AXIS3, padbits);
-    PerSetKey(genidjson(user,joyId,player["analogright"]), PERANALOG_AXIS4, padbits);  
+    if( player.find("up") != player.end()) PerSetKey(genidjson(user,joyId,player["up"]),PERPAD_UP, padbits);
+    if( player.find("down") != player.end()) PerSetKey(genidjson(user,joyId,player["down"]),PERPAD_DOWN, padbits);
+    if( player.find("left") != player.end()) PerSetKey(genidjson(user,joyId,player["left"]),PERPAD_LEFT, padbits);
+    if( player.find("right") != player.end()) PerSetKey(genidjson(user,joyId,player["right"]),PERPAD_RIGHT, padbits);
+    if( player.find("start") != player.end()) PerSetKey(genidjson(user,joyId,player["start"]), PERPAD_START, padbits);
+    if( player.find("a") != player.end()) PerSetKey(genidjson(user,joyId,player["a"]),PERPAD_A, padbits);
+    if( player.find("b") != player.end()) PerSetKey(genidjson(user,joyId,player["b"]),PERPAD_B, padbits);
+    if( player.find("c") != player.end()) PerSetKey(genidjson(user,joyId,player["c"]),PERPAD_C, padbits);
+    if( player.find("x") != player.end()) PerSetKey(genidjson(user,joyId,player["x"]),PERPAD_X, padbits);
+    if( player.find("y") != player.end()) PerSetKey(genidjson(user,joyId,player["y"]),PERPAD_Y, padbits);
+    if( player.find("z") != player.end()) PerSetKey(genidjson(user,joyId,player["z"]),PERPAD_Z, padbits);
+    if( player.find("l") != player.end()) PerSetKey(genidjson(user,joyId,player["l"]),PERPAD_LEFT_TRIGGER, padbits);
+    if( player.find("r") != player.end())PerSetKey(genidjson(user,joyId,player["r"]),PERPAD_RIGHT_TRIGGER, padbits);    
+    if( player.find("analogx") != player.end())  PerSetKey(genidjson(user,joyId,player["analogx"]), PERANALOG_AXIS1, padbits);
+    if( player.find("analogy") != player.end()) PerSetKey(genidjson(user,joyId,player["analogy"]), PERANALOG_AXIS2, padbits);
+    if( player.find("analogleft") != player.end()) PerSetKey(genidjson(user,joyId,player["analogleft"]), PERANALOG_AXIS3, padbits);
+    if( player.find("analogright") != player.end()) PerSetKey(genidjson(user,joyId,player["analogright"]), PERANALOG_AXIS4, padbits);  
 }
 
 int setDefalutSettings( void * padbits ){
@@ -214,8 +214,10 @@ int mapKeys( const json & configs ){
           PADLOG("Player1: Switch to Analog mode\n");
         }
         string guid = p1["deviceGUID"];
-        json dev = configs[ guid ];
-        setPlayerKeys( padbits, user, joyId, dev );
+        if( configs.find(guid) != configs.end()){
+          json dev = configs[ guid ];
+          setPlayerKeys( padbits, user, joyId, dev );
+        }
       }
     }
   }catch( json::type_error & e ){
@@ -279,8 +281,10 @@ int mapKeys( const json & configs ){
           PADLOG("Player2: Switch to Analog mode\n");
         }
         string guid = p2["deviceGUID"];
-        json dev = configs[ guid ];
-        setPlayerKeys( padbits, user, joyId, dev );
+        if( configs.find(guid) != configs.end()){
+          json dev = configs[ guid ];
+          setPlayerKeys( padbits, user, joyId, dev );
+        }
       }
     }
   }catch( json::type_error & e){
@@ -532,10 +536,10 @@ int InputManager::convertFromEmustationFile( const std::string & fname ){
     }else{
 
       // Set Defalut Key
-      joystics["Player1"]["deviceID"]= -1;
-      joystics["Player1"]["padmode"] = 0;
-      joystics["Player1"]["deviceGUID"] = "-1";
-      joystics["Player1"]["deviceName"] = "Keyboard";
+      joystics["player1"]["DeviceID"]= -1;
+      joystics["player1"]["padmode"] = 0;
+      joystics["player1"]["deviceGUID"] = "-1";
+      joystics["player1"]["deviceName"] = "Keyboard";
       joystics["-1"]["a"] ={ { "type", "key" },{ "id", 122 },{ "value", 0 } };
       joystics["-1"]["b"] ={ { "type", "key" },{ "id", 120 },{ "value", 0 } };
       joystics["-1"]["c"] ={ { "type", "key" },{ "id", 199 },{ "value", 0 } };
@@ -997,7 +1001,8 @@ bool InputManager::parseEventMenu(const SDL_Event& ev ){
           }
         }
       }
-    if( SDL_JOYBUTTONDOWN == ev.type && (ev.jbutton.button == select_button_ ||evstr[0]=="b")  ){
+    if( SDL_JOYBUTTONDOWN == ev.type && 
+       ( (select_button_ != -1 && ev.jbutton.button == select_button_)  || (evstr.size() > 0 && evstr[0]=="b") )  ){
       printf("press back\n");
       if( menu_layer_->onBackButtonPressed() == 0 ){
         SDL_Event event = {};
@@ -1023,6 +1028,17 @@ bool InputManager::parseEventMenu(const SDL_Event& ev ){
   case SDL_KEYDOWN:
     if(ev.key.repeat)
       return false;  
+    
+    if(ev.key.keysym.sym == SDLK_ESCAPE){
+      //if( menu_layer_->onBackButtonPressed() == 0 ){
+        SDL_Event event = {};
+        event.type = showmenu_;
+        event.user.code = 0;
+        event.user.data1 = 0;
+        event.user.data2 = 0;
+        SDL_PushEvent(&event);
+      //}
+    }
 
     menu_layer_->onRawInputEvent(*this,"-1", "key",ev.key.keysym.sym,1);
 
@@ -1035,7 +1051,6 @@ bool InputManager::parseEventMenu(const SDL_Event& ev ){
     }else{
       return false;
     }
-
     break;
   case SDL_KEYUP:
     if( mKeyboardInputConfig )  {

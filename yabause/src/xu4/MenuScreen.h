@@ -99,6 +99,8 @@ public:
     void setConfigFile( const std::string & fname ){
         config_file_ = fname;
     }
+    void getSelectedGUID( int user_index, std::string & selguid );
+
 public:  // events
     int onBackButtonPressed();    
     int onShow();    

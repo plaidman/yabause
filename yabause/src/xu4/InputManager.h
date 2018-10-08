@@ -67,7 +67,7 @@ public:
 
 	void setMenuLayer( MenuScreen * menu_layer );
 
-	uint32_t select_button_ = 0;
+	uint32_t select_button_ = -1;
 	uint32_t showmenu_ = 0;
 	void setToggleMenuEventCode( uint32_t type ){ showmenu_ = type; }
 
