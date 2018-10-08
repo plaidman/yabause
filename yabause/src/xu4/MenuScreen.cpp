@@ -147,7 +147,7 @@ void MenuScreen::getSelectedGUID( int user_index, std::string & selguid ){
   json j;
   std::stringstream ss;
   std::string userid;
-  
+
   try{
     std::ifstream fin( config_file_ );
     fin >> j;
@@ -430,13 +430,15 @@ int MenuScreen::onRawInputEvent( InputManager & imp, const std::string & deviceg
   }
 
   // wait for key input?
-  if( current_key_.find("analog") == std::string::npos ){
-    if( type == "axis" ){
-      return -1;
-    }
-  }else{
-    if( type != "axis" ){
-      return -1;
+  if( current_key_ != "l" && current_key_ != "r" ) {
+    if( current_key_.find("analog") == std::string::npos  ){
+      if( type == "axis" ){
+        return -1;
+      }
+    }else{
+      if( type != "axis" ){
+        return -1;
+      }
     }
   }
 
