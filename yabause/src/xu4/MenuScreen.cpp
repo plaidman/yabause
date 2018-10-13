@@ -57,11 +57,13 @@ MenuScreen::MenuScreen( SDL_Window* pwindow, int rwidth, int rheight, const std:
         tools->setLayout(new BoxLayout(Orientation::Vertical,Alignment::Middle, 0, 5));
         tools->setFixedWidth(256);
 
-        player1 = new PopupButton(tools, "Player1", ENTYPO_ICON_EXPORT);      
-        setupPlayerPsuhButton( 0, player1, "Player1 Input Settings", &p1cb );
-
-        player2 = new PopupButton(tools, "Player2", ENTYPO_ICON_EXPORT);    
-        setupPlayerPsuhButton( 1, player2, "Player2 Input Settings", &p2cb );
+        PlayerConfig tmp;
+        tmp.player = new PopupButton(tools, "Player1", ENTYPO_ICON_EXPORT);      
+        setupPlayerPsuhButton( 0, tmp.player, "Player1 Input Settings", &tmp.cb );
+        player_configs_.push_back(tmp);
+        tmp.player = new PopupButton(tools, "Player2", ENTYPO_ICON_EXPORT);      
+        setupPlayerPsuhButton( 1, tmp.player, "Player2 Input Settings", &tmp.cb );
+        player_configs_.push_back(tmp);
 
         Button *b0 = new Button(tools, "Exit");
         b0->setFixedWidth(248);
@@ -123,9 +125,9 @@ MenuScreen::MenuScreen( SDL_Window* pwindow, int rwidth, int rheight, const std:
           SDL_PushEvent(&event);            
         });
 */
-        player1->focusEvent(true);
-        player1->mouseEnterEvent(player1->absolutePosition(),true);
-        mFocus = player1;
+        player_configs_[0].player->focusEvent(true);
+        player_configs_[0].player->mouseEnterEvent(player_configs_[0].player->absolutePosition(),true);
+        mFocus = player_configs_[0].player;
         performLayout();
 }
 
@@ -236,6 +238,7 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
             char guid[65];
             SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(joy), guid, 65);
             cuurent_deviceguid_ = guid;
+            MENU_LOG("cuurent_deviceguid_ = %s\n", cuurent_deviceguid_.c_str() );
             device_name = SDL_JoystickName(joy);
             break;
           }
@@ -253,6 +256,32 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
       j[userid]["deviceGUID"] = cuurent_deviceguid_;
       j[userid]["DeviceID"]   = joyId;
       j[userid]["deviceName"] = device_name;
+
+      if( cuurent_deviceguid_ != "-2"){
+        for( int i=0; i<player_configs_.size(); i++ ){
+          std::stringstream ss;
+          ss << "player" << (i+1);
+          std::string taeget_userid = ss.str();
+          if( userid != taeget_userid){
+            if( j.find(taeget_userid) != j.end()){
+              std::string other_guid = j[taeget_userid]["deviceGUID"];
+              if( other_guid == cuurent_deviceguid_ ){
+                // Select Disable
+                j[taeget_userid]["deviceGUID"] = "-2";
+                j[taeget_userid]["DeviceID"] = -2;
+                j[taeget_userid]["deviceName"] = "Disable";    
+                const std::vector<std::string> & items = player_configs_[i].cb->items(); 
+                for( int ii = 0; ii < items.size(); ii++ ) {
+                  if( items[ii] == j[taeget_userid]["deviceName"] ){
+                    player_configs_[i].cb->setSelectedIndex(ii);
+                  }
+                }
+              }
+            }
+          }
+        }      
+      }
+      this->performLayout();
       std::ofstream out(this->config_file_);
       out << j.dump(2);
       out.close();        
@@ -548,35 +577,23 @@ void MenuScreen::setCurrentInputDevices( std::map<SDL_JoystickID, SDL_Joystick*>
   itemsShort.push_back("Disable");
   items.push_back("-2");
 
-
-  if( p1cb != nullptr ) { 
-    p1cb->setItems(itemsShort,itemsShort); 
-    userid = "player1";
-    if( j.find(userid) != j.end() ) {
-      selguid = j[userid]["deviceGUID"];
-    }else{
-      selguid = "-2";
-    }
-    for( int i=0; i<items.size(); i++  ){
-       if( items[i] == selguid ){
-         p1cb->setSelectedIndex(i);
-         break;
-       }
-    }
-  }
-
-  if( p2cb != nullptr ) { 
-    p2cb->setItems(itemsShort,itemsShort); 
-    userid = "player2";
-    if( j.find(userid) != j.end() ) {
-      selguid = j[userid]["deviceGUID"];
-    }else{
-      selguid = "-2";
-    }
-    for( int i=0; i<items.size(); i++  ){
-      if( items[i] == selguid ){
-        p2cb->setSelectedIndex(i);
-        break;
+  for( int i=0; i< player_configs_.size(); i++ ){
+    ComboBox * cb = player_configs_[i].cb ;
+    if( cb != nullptr ){
+      cb->setItems(itemsShort,itemsShort); 
+      std::stringstream ss;
+      ss << "player" << (i+1);
+      std::string userid = ss.str();      
+      if( j.find(userid) != j.end() ) {
+        selguid = j[userid]["deviceGUID"];
+      }else{
+        selguid = "-2";
+      }
+      for( int i=0; i<items.size(); i++  ){
+        if( items[i] == selguid ){
+          cb->setSelectedIndex(i);
+          break;
+        }
       }
     }
   }

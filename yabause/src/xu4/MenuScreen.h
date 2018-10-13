@@ -40,15 +40,23 @@ struct PreMenuInfo {
     Widget* button = nullptr;
 };
 
+struct PlayerConfig {
+    ComboBox * cb = nullptr;
+    PopupButton *player = nullptr;
+};
+
 class MenuScreen : public nanogui::Screen
 {
 public:
     //Widget *activeWindow = nullptr;
     Widget *tools = nullptr;
+    std::vector<PlayerConfig> player_configs_;
+/*    
     PopupButton *player1;
     ComboBox * p1cb = nullptr;
     PopupButton *player2 = nullptr;
     ComboBox * p2cb = nullptr;
+*/    
     Button *bAnalog = nullptr;
 
     std::map<SDL_JoystickID, SDL_Joystick*> joysticks_;
