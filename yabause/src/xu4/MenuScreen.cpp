@@ -169,7 +169,7 @@ void MenuScreen::getSelectedGUID( int user_index, std::string & selguid ){
 void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, const std::string & label, ComboBox **cbo ){
   player->setFixedWidth(248);
   Popup *popup = player->popup();     
-  popup->setLayout(new GroupLayout(8,4,4,4)); 
+  popup->setLayout(new GroupLayout(4,2,2,2)); 
   new Label(popup, label);
 
   std::string username;
@@ -375,6 +375,7 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
     getSelectedGUID( user_index, this->cuurent_deviceguid_ );
     showInputCheckDialog("start");
   });
+
   b = new Button(popup, "A");
   b->setCallback([this, user_index]{
     getSelectedGUID( user_index, this->cuurent_deviceguid_ );
@@ -420,22 +421,30 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
   b = new Button(popup, "Analog X");
   b->setCallback([this, user_index]{
     getSelectedGUID( user_index, this->cuurent_deviceguid_ );
-    showInputCheckDialog("analogx");
+    if( this->cuurent_deviceguid_ != "-1" ){
+      showInputCheckDialog("analogx");
+    }
   });   
   b = new Button(popup, "Analog Y");
   b->setCallback([this, user_index]{
     getSelectedGUID( user_index, this->cuurent_deviceguid_ );
-    showInputCheckDialog("analogy");
+    if( this->cuurent_deviceguid_ != "-1" ){
+      showInputCheckDialog("analogy");
+    }
   });   
   b = new Button(popup, "Analog L");
   b->setCallback([this, user_index]{
     getSelectedGUID( user_index, this->cuurent_deviceguid_ );
-    showInputCheckDialog("analogl");
+    if( this->cuurent_deviceguid_ != "-1"){
+      showInputCheckDialog("analogl");
+    }
   });   
   b = new Button(popup, "Analog R");
   b->setCallback([this, user_index]{
     getSelectedGUID( user_index, this->cuurent_deviceguid_ );
-    showInputCheckDialog("analogr");
+    if( this->cuurent_deviceguid_ != "-1"){
+      showInputCheckDialog("analogr");
+    }
   });   
 }
 

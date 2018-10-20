@@ -160,20 +160,26 @@ int mapKeys( const json & configs ){
     json p = configs["player1"];
     if( p["DeviceID"].get<int>() == -1 ){
       std::string guid = p["deviceGUID"];
-      json dev = configs[ guid ];
-      setPlayerKeys( padbits, 0, -1, dev );
-      return 0;
+      if( configs.find(guid) != configs.end() ){
+        json dev = configs[ guid ];
+        setPlayerKeys( padbits, 0, -1, dev );
+        return 0;
+      }
     }
+#if 0    
     if( configs.find("player2") == configs.end() ){
       return setDefalutSettings(padbits);
     }    
     p = configs["player2"];
     if( p["DeviceID"].get<int>() == -1 ){
       std::string guid = p["deviceGUID"];
-      json dev = configs[ guid ];
-      setPlayerKeys( padbits, 0, -1, p );
-      return 0;
+      if( configs.find(guid) != configs.end() ){
+        json dev = configs[ guid ];
+        setPlayerKeys( padbits, 0, -1, dev );
+        return 0;
+      }
     }    
+#endif    
     return setDefalutSettings(padbits);
   }
 
@@ -876,7 +882,7 @@ bool InputManager::parseEventMenu(const SDL_Event& ev ){
           }
         }
       }
-    if( SDL_JOYBUTTONDOWN == ev.type && 
+    if( SDL_JOYBUTTONUP == ev.type && 
        ( evstr.size() > 0 && (evstr[0]=="b" || evstr[0]=="select") )  ){
       printf("press back\n");
       if( menu_layer_->onBackButtonPressed() == 0 ){
@@ -960,6 +966,7 @@ bool InputManager::parseEvent(const SDL_Event& ev)
         event.user.data1 = 0;
         event.user.data2 = 0;
         SDL_PushEvent(&event);
+        return true;
       }   
     }
     return true;
