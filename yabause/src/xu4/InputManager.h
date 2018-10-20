@@ -11,6 +11,11 @@ class YWindow;
 
 class MenuScreen;
 
+struct MenuInput {
+	uint32_t select_button_ = -1;
+	SDL_JoystickID select_device_ = -1;
+};
+
 
 //you should only ever instantiate one of these, by the way
 class InputManager
@@ -40,6 +45,7 @@ private:
 
   int convertFromEmustationFile( const std::string & fname );
 
+
 public:
 	virtual ~InputManager();
 
@@ -67,7 +73,7 @@ public:
 
 	void setMenuLayer( MenuScreen * menu_layer );
 
-	uint32_t select_button_ = -1;
+
 	uint32_t showmenu_ = 0;
 	void setToggleMenuEventCode( uint32_t type ){ showmenu_ = type; }
 
@@ -78,6 +84,8 @@ public:
 	void updateConfig();
 
 	void saveInputConfig( const std::string & player , const std::string & key , const std::string & type, int id , int value);
+
+	std::vector<MenuInput> menu_inputs_;
 	
 };
 

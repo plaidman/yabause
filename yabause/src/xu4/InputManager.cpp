@@ -330,76 +330,6 @@ void InputManager::setGamePadomode( int user, int mode ){
     out.close();
   }
 
-#if 0  
-  void * padbits;
-  Input result;  
-  int numJoysticks = SDL_NumJoysticks();
-  
-  if( numJoysticks != 0 ){
-    
-    int joyId = mInputConfigs[0]->getDeviceId();
-
-    if( mode == 0 ){
-      LOG("Switch to dig mode\n");
-      PerPortReset();
-      if( user == 0 ){
-        padbits = PerPadAdd(&PORTDATA1);    
-      }else{
-        padbits = PerPadAdd(&PORTDATA2);    
-      }
-    }else if( mode == 1 ){
-      LOG("Switch to Analog mode\n");
-            PerPortReset();
-      if( user == 0 ){
-              padbits = Per3DPadAdd(&PORTDATA1);
-      }else{
-        padbits = Per3DPadAdd(&PORTDATA2);
-      }
-      PerSetKey(MAKE_PAD(user,((joyId << 18)|SDL_MEDIUM_AXIS_VALUE|0)), PERANALOG_AXIS1, padbits);
-      PerSetKey(MAKE_PAD(user,((joyId << 18)|SDL_MEDIUM_AXIS_VALUE|1)), PERANALOG_AXIS2, padbits);
-      PerSetKey(MAKE_PAD(user,((joyId << 18)|SDL_MEDIUM_AXIS_VALUE|2)), PERANALOG_AXIS3, padbits);
-      PerSetKey(MAKE_PAD(user,((joyId << 18)|SDL_MEDIUM_AXIS_VALUE|3)), PERANALOG_AXIS4, padbits);
-    }
-
-    mInputConfigs[0]->getInputByName("up", &result);
-    PerSetKey(genid(user,joyId,result),PERPAD_UP, padbits);
-    mInputConfigs[0]->getInputByName("down", &result);
-    PerSetKey(genid(user,joyId,result), PERPAD_DOWN, padbits);
-    mInputConfigs[0]->getInputByName("left", &result);
-    PerSetKey(genid(user,joyId,result), PERPAD_LEFT, padbits);
-    mInputConfigs[0]->getInputByName("right", &result);
-    PerSetKey(genid(user,joyId,result), PERPAD_RIGHT, padbits);
-    mInputConfigs[0]->getInputByName("start", &result);
-    PerSetKey(genid(user,joyId,result), PERPAD_START, padbits);
-    mInputConfigs[0]->getInputByName("select", &result);
-    select_button_ = result.id;    
-    mInputConfigs[0]->getInputByName("a", &result);
-    PerSetKey(genid(user,joyId,result), PERPAD_A, padbits);
-    mInputConfigs[0]->getInputByName("b", &result);
-    PerSetKey(genid(user,joyId,result), PERPAD_B, padbits);
-    mInputConfigs[0]->getInputByName("x", &result);
-    PerSetKey(genid(user,joyId,result), PERPAD_X, padbits);
-    mInputConfigs[0]->getInputByName("y", &result);
-    PerSetKey(genid(user,joyId,result) , PERPAD_Y, padbits);
-    mInputConfigs[0]->getInputByName("rightshoulder", &result);
-    PerSetKey(genid(user,joyId,result), PERPAD_C, padbits);
-    mInputConfigs[0]->getInputByName("leftshoulder", &result);
-    PerSetKey(genid(user,joyId,result), PERPAD_Z, padbits);
-
-    mInputConfigs[0]->getInputByName("lefttrigger", &result);
-    PerSetKey(genid(user,joyId,result), PERPAD_LEFT_TRIGGER, padbits);
-
-    mInputConfigs[0]->getInputByName("righttrigger", &result);
-    PerSetKey(genid(user,joyId,result), PERPAD_RIGHT_TRIGGER, padbits);
-    
-      
-    // Force Hat
-    PerSetKey( MAKE_PAD(user, (joyId << 18) | SDL_HAT_VALUE | (SDL_HAT_UP<<4)), PERPAD_UP, padbits);
-    PerSetKey( MAKE_PAD(user,(joyId << 18) | SDL_HAT_VALUE | (SDL_HAT_DOWN<<4)), PERPAD_DOWN, padbits);
-    PerSetKey( MAKE_PAD(user,(joyId << 18) | SDL_HAT_VALUE | (SDL_HAT_LEFT<<4)), PERPAD_LEFT, padbits);
-    PerSetKey( MAKE_PAD(user,(joyId << 18) | SDL_HAT_VALUE | (SDL_HAT_RIGHT<<4)), PERPAD_RIGHT, padbits);
-  }
-#endif  
 }
 
 /*
@@ -521,13 +451,6 @@ int InputManager::convertFromEmustationFile( const std::string & fname ){
  
   json joystics;
 
-  // first, open all currently present joysticks
-  int numJoysticks = SDL_NumJoysticks();
-  for(int i = 0; i < numJoysticks; i++)
-  {
-    addJoystickByDeviceIndex(i);
-  }
-
   if( mInputConfigs.size() == 0 ){
     
     mKeyboardInputConfig = new InputConfig(DEVICE_KEYBOARD, "Keyboard", KEYBOARD_GUID_STRING);
@@ -590,8 +513,14 @@ void InputManager::init( const std::string & fname )
   SDL_InitSubSystem(SDL_INIT_JOYSTICK);
   SDL_JoystickEventState(SDL_ENABLE);
 
-  json j;
+  // first, open all currently present joysticks
+  int numJoysticks = SDL_NumJoysticks();
+  for(int i = 0; i < numJoysticks; i++)
+  {
+    addJoystickByDeviceIndex(i);
+  }  
 
+  json j;
   config_fname_ = fname;
   if(!fs::exists(fname)){
     if( convertFromEmustationFile(fname) != 0 ){
@@ -605,72 +534,18 @@ void InputManager::init( const std::string & fname )
 
   mapKeys(j);
 
-  try{
-    std::string guid = j["player1"]["deviceGUID"];
-    select_button_ = j[guid]["select"]["id"];
-  }catch( json::exception& e ){
-         std::cout << "Select button is not find\n" << "message: " << e.what() << '\n'
-                   << "exception id: " << e.id << std::endl;
+  menu_inputs_.clear();
+  std::map<SDL_JoystickID, InputConfig*>::iterator it;
+
+  for ( it = mInputConfigs.begin(); it != mInputConfigs.end(); it++ ){
+    MenuInput tmp;
+    Input result;
+    it->second->getInputByName("select", &result);
+    tmp.select_device_ = it->second->getDeviceId();
+    tmp.select_button_ = result.id;
+    printf("select_device_ = %d, select_button_ = %d\n", tmp.select_device_, tmp.select_button_ );
+    menu_inputs_.push_back(tmp);
   }
-
-/*
-  // first, open all currently present joysticks
-  int numJoysticks = SDL_NumJoysticks();
-  for(int i = 0; i < numJoysticks; i++)
-  {
-    addJoystickByDeviceIndex(i);
-  }
-
-  if( numJoysticks != 0 && mInputConfigs.size() != 0 ){
-    setGamePadomode( 0, 0 );
-    return;
-  }
-
-  mKeyboardInputConfig = new InputConfig(DEVICE_KEYBOARD, "Keyboard", KEYBOARD_GUID_STRING);
-  loadInputConfig(mKeyboardInputConfig);
-
-  PerPortReset();
-  padbits = PerPadAdd(&PORTDATA1);
-  mKeyboardInputConfig->getInputByName("up", &result);
-  PerSetKey(result.id, PERPAD_UP, padbits);
-  mKeyboardInputConfig->getInputByName("down", &result);
-  PerSetKey(result.id, PERPAD_DOWN, padbits);
-  mKeyboardInputConfig->getInputByName("left", &result);
-  PerSetKey(result.id, PERPAD_LEFT, padbits);
-  mKeyboardInputConfig->getInputByName("right", &result);
-  PerSetKey(result.id, PERPAD_RIGHT, padbits);
-
-  mKeyboardInputConfig->getInputByName("start", &result);
-  //printf("start id %d\n",result.id);
-  PerSetKey(result.id, PERPAD_START, padbits);
-
-  mKeyboardInputConfig->getInputByName("select", &result);
-  select_button_ = result.id;
-
-  mKeyboardInputConfig->getInputByName("a", &result);
-  PerSetKey(result.id, PERPAD_A, padbits);
-
-  mKeyboardInputConfig->getInputByName("b", &result);
-  PerSetKey(result.id, PERPAD_B, padbits);
-
-  mKeyboardInputConfig->getInputByName("x", &result);
-  PerSetKey(result.id, PERPAD_X, padbits);
-
-  mKeyboardInputConfig->getInputByName("y", &result);
-  PerSetKey(result.id, PERPAD_Y, padbits);
-
-  mKeyboardInputConfig->getInputByName("rightshoulder", &result);
-  PerSetKey(result.id, PERPAD_C, padbits);
-
-  mKeyboardInputConfig->getInputByName("leftshoulder", &result);
-  PerSetKey(result.id, PERPAD_Z, padbits);
-
-  mKeyboardInputConfig->getInputByName("lefttrigger", &result);
-  PerSetKey(result.id, PERPAD_LEFT_TRIGGER, padbits);
-
-  mKeyboardInputConfig->getInputByName("righttrigger", &result);
-  PerSetKey(result.id, PERPAD_RIGHT_TRIGGER, padbits);
-*/
 }
 
 void InputManager::addJoystickByDeviceIndex(int id)
@@ -1002,7 +877,7 @@ bool InputManager::parseEventMenu(const SDL_Event& ev ){
         }
       }
     if( SDL_JOYBUTTONDOWN == ev.type && 
-       ( (select_button_ != -1 && ev.jbutton.button == select_button_)  || (evstr.size() > 0 && evstr[0]=="b") )  ){
+       ( evstr.size() > 0 && (evstr[0]=="b" || evstr[0]=="select") )  ){
       printf("press back\n");
       if( menu_layer_->onBackButtonPressed() == 0 ){
         SDL_Event event = {};
@@ -1076,13 +951,16 @@ bool InputManager::parseEvent(const SDL_Event& ev)
   switch(ev.type)
   {
   case SDL_JOYBUTTONUP:{
-    if( ev.jbutton.button == select_button_ ){
-      SDL_Event event = {};
-      event.type = showmenu_;
-      event.user.code = 0;
-      event.user.data1 = 0;
-      event.user.data2 = 0;
-      SDL_PushEvent(&event);
+    for( int i=0; i<menu_inputs_.size(); i++  ){
+         if( ev.jbutton.button == menu_inputs_[i].select_button_ && 
+             ev.jbutton.which == menu_inputs_[i].select_device_ ){
+        SDL_Event event = {};
+        event.type = showmenu_;
+        event.user.code = 0;
+        event.user.data1 = 0;
+        event.user.data2 = 0;
+        SDL_PushEvent(&event);
+      }   
     }
     return true;
   }    
@@ -1210,7 +1088,7 @@ void InputManager::writeDeviceConfig(InputConfig* config)
 std::string InputManager::getConfigPath()
 {
   std::string path = getenv("HOME");
-  path += "/.emulationstation/es_temporaryinput.cfg";
+  path += "/.emulationstation/es_input.cfg";
   return path;
 }
 
