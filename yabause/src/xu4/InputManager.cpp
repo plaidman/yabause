@@ -204,6 +204,7 @@ int mapKeys( const json & configs ){
               SDL_JoystickID _joyId = SDL_JoystickInstanceID(joy);
               PADLOG("Player1: %s(%d) is selected\n",p1["deviceName"].get<std::string>().c_str(), _joyId );            
               joyId = _joyId;
+              break;
             }
             if (SDL_JoystickGetAttached(joy)) {
               SDL_JoystickClose(joy);
@@ -271,6 +272,7 @@ int mapKeys( const json & configs ){
               SDL_JoystickID _joyId = SDL_JoystickInstanceID(joy);
               PADLOG("Player2: %s(%d) is selected\n",p2["deviceName"].get<std::string>().c_str(), _joyId );
               joyId = _joyId;
+              break;
             }
             if (SDL_JoystickGetAttached(joy)) {
               SDL_JoystickClose(joy);
