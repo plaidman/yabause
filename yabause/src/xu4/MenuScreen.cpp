@@ -157,7 +157,7 @@ void MenuScreen::getSelectedGUID( int user_index, std::string & selguid ){
     ss << "player" << (user_index+1);
     userid = ss.str();
     if( j.find(userid) != j.end() ) {
-      selguid = j[userid]["deviceGUID"];
+      selguid = j[userid]["deviceName"].get<std::string>()  + "_" + j[userid]["deviceGUID"].get<std::string>() ;
     }
   }catch ( json::exception& e ){
 
@@ -177,6 +177,7 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
 
   json j;
   string selguid="BADGUID";
+  string selname="BADNAME";
   int padmode=0;
   std::stringstream ss;
   std::string userid;
@@ -189,6 +190,7 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
     userid = ss.str();
     if( j.find(userid) != j.end() ) {
       selguid = j[userid]["deviceGUID"];
+      selname = j[userid]["deviceName"];
       padmode = j[userid]["padmode"];
     }
   }catch ( json::exception& e ){
@@ -205,10 +207,11 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
     SDL_JoystickID joyId = SDL_JoystickInstanceID(joy);
     char guid[65];
     SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(joy), guid, 65);
-    if( selguid  == string("guid") ){
+    string key_string = string(SDL_JoystickName(joy)) + "_" + string(guid);
+    if( selname + "_" + selguid  == key_string ){
       selindex = index;
     }
-    items.push_back(guid);
+    items.push_back( key_string );
     itemsShort.push_back(SDL_JoystickName(joy));
   }  
   cb->setItems(itemsShort);
@@ -228,18 +231,23 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
       SDL_JoystickID joyId = -1;
       int itenindex = 0;
       std::string device_name = "Keyboard";
+      string guid_only = "-1";
+      cuurent_deviceguid_ = "Keyboard_-1";
       if( idx >= joysticks_.size() ){
-        cuurent_deviceguid_ = "-1"; // keyboard may be
+        cuurent_deviceguid_ = "Keyboard_-1"; // keyboard may be
       }else{
         for( auto it = joysticks_.begin(); it != joysticks_.end() ; ++it ) {
           if( itenindex == idx ){
             SDL_Joystick* joy = it->second;
             joyId = SDL_JoystickInstanceID(joy);
             char guid[65];
+            string joy_name_and_guid;
             SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(joy), guid, 65);
-            cuurent_deviceguid_ = guid;
+            joy_name_and_guid = string(SDL_JoystickName(joy)) + "_" + string(guid);
+            cuurent_deviceguid_ = joy_name_and_guid;
             MENU_LOG("cuurent_deviceguid_ = %s\n", cuurent_deviceguid_.c_str() );
             device_name = SDL_JoystickName(joy);
+            guid_only = guid;
             break;
           }
           itenindex++;
@@ -253,19 +261,21 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
       //if( j.find(userid) == j.end() ) {
       //  return;
       //}            
-      j[userid]["deviceGUID"] = cuurent_deviceguid_;
+      j[userid]["deviceGUID"] = guid_only;
       j[userid]["DeviceID"]   = joyId;
       j[userid]["deviceName"] = device_name;
 
-      if( cuurent_deviceguid_ != "-2"){
+      if( cuurent_deviceguid_ != "Disable_-2"){
         for( int i=0; i<player_configs_.size(); i++ ){
           std::stringstream ss;
           ss << "player" << (i+1);
           std::string taeget_userid = ss.str();
           if( userid != taeget_userid){
             if( j.find(taeget_userid) != j.end()){
-              std::string other_guid = j[taeget_userid]["deviceGUID"];
+              std::string other_guid = j[taeget_userid]["deviceName"].get<std::string>() + "_" + j[taeget_userid]["deviceGUID"].get<std::string>();
+              cout << "O = " << other_guid << endl << "C = " << cuurent_deviceguid_ << endl;
               if( other_guid == cuurent_deviceguid_ ){
+                cout << "Disable:" << other_guid << endl;
                 // Select Disable
                 j[taeget_userid]["deviceGUID"] = "-2";
                 j[taeget_userid]["DeviceID"] = -2;
@@ -421,28 +431,28 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
   b = new Button(popup, "Analog X");
   b->setCallback([this, user_index]{
     getSelectedGUID( user_index, this->cuurent_deviceguid_ );
-    if( this->cuurent_deviceguid_ != "-1" ){
+    if( this->cuurent_deviceguid_ != "Keyboard_-1" ){
       showInputCheckDialog("analogx");
     }
   });   
   b = new Button(popup, "Analog Y");
   b->setCallback([this, user_index]{
     getSelectedGUID( user_index, this->cuurent_deviceguid_ );
-    if( this->cuurent_deviceguid_ != "-1" ){
+    if( this->cuurent_deviceguid_ != "Keyboard_-1" ){
       showInputCheckDialog("analogy");
     }
   });   
   b = new Button(popup, "Analog L");
   b->setCallback([this, user_index]{
     getSelectedGUID( user_index, this->cuurent_deviceguid_ );
-    if( this->cuurent_deviceguid_ != "-1"){
+    if( this->cuurent_deviceguid_ != "Keyboard_-1"){
       showInputCheckDialog("analogl");
     }
   });   
   b = new Button(popup, "Analog R");
   b->setCallback([this, user_index]{
     getSelectedGUID( user_index, this->cuurent_deviceguid_ );
-    if( this->cuurent_deviceguid_ != "-1"){
+    if( this->cuurent_deviceguid_ != "Keyboard_-1"){
       showInputCheckDialog("analogr");
     }
   });   
@@ -670,18 +680,17 @@ Widget * MenuScreen::getActiveMenu(){
 
 int MenuScreen::onBackButtonPressed(){
   MENU_LOG("onBackButtonPressed\n");
-  /*
+  
   if( swindow != nullptr ){
-    swindow->dispose();>setVisible(false);
+    swindow->dispose();
     swindow = nullptr;
     return 1;    
   }
-  */
- if( swindow != nullptr ){ 
-   printf("swindow != null\n");
-   return 1; 
- }
-
+  
+ //if( swindow != nullptr ){ 
+ //  printf("swindow != null\n");
+ //  return 1; 
+ //}
 
   Widget * item = getActiveMenu();
   if( item == tools ){
