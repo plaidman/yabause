@@ -1132,7 +1132,7 @@ void InputManager::writeDeviceConfig(InputConfig* config)
 std::string InputManager::getConfigPath()
 {
   std::string path = getenv("HOME");
-  path += "/.emulationstation/es_input.cfg";
+  path += "/.emulationstation/es_temporaryinput.cfg";
   return path;
 }
 
