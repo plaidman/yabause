@@ -157,7 +157,7 @@ void MenuScreen::getSelectedGUID( int user_index, std::string & selguid ){
     ss << "player" << (user_index+1);
     userid = ss.str();
     if( j.find(userid) != j.end() ) {
-      selguid = j[userid]["deviceName"].get<std::string>()  + "_" + j[userid]["deviceGUID"].get<std::string>() ;
+      InputManager::genJoyString( selguid, j[userid]["DeviceID"], j[userid]["deviceName"], j[userid]["deviceGUID"] );
     }
   }catch ( json::exception& e ){
 
@@ -190,7 +190,7 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
     userid = ss.str();
     if( j.find(userid) != j.end() ) {
       selguid = j[userid]["deviceGUID"];
-      selname = j[userid]["deviceName"];
+      InputManager::genJoyString( selguid, j[userid]["DeviceID"], j[userid]["deviceName"], j[userid]["deviceGUID"] );
       padmode = j[userid]["padmode"];
     }
   }catch ( json::exception& e ){
@@ -207,10 +207,13 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
     SDL_JoystickID joyId = SDL_JoystickInstanceID(joy);
     char guid[65];
     SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(joy), guid, 65);
-    string key_string = string(SDL_JoystickName(joy)) + "_" + string(guid);
-    if( selname + "_" + selguid  == key_string ){
+    string key_string;
+    InputManager::genJoyString( key_string, joyId, SDL_JoystickName(joy), guid );
+    if( selguid  == key_string ){
       selindex = index;
     }
+    printf("listguid = %d:%s\n", index, key_string.c_str() );
+    index++;
     items.push_back( key_string );
     itemsShort.push_back(SDL_JoystickName(joy));
   }  
@@ -219,6 +222,7 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
   if( selindex != -1 ){
     cb->setSelectedIndex(selindex);
   }
+  printf("selguid = %d:%s\n", selindex, selguid.c_str() );
 
   Popup *cbpopup = cb->popup(); 
   cb->setCallback([this,cbpopup,cb]() {       
@@ -243,7 +247,7 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
             char guid[65];
             string joy_name_and_guid;
             SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(joy), guid, 65);
-            joy_name_and_guid = string(SDL_JoystickName(joy)) + "_" + string(guid);
+            InputManager::genJoyString( joy_name_and_guid, joyId, SDL_JoystickName(joy),  guid );
             cuurent_deviceguid_ = joy_name_and_guid;
             MENU_LOG("cuurent_deviceguid_ = %s\n", cuurent_deviceguid_.c_str() );
             device_name = SDL_JoystickName(joy);
@@ -272,7 +276,8 @@ void MenuScreen::setupPlayerPsuhButton( int user_index, PopupButton *player, con
           std::string taeget_userid = ss.str();
           if( userid != taeget_userid){
             if( j.find(taeget_userid) != j.end()){
-              std::string other_guid = j[taeget_userid]["deviceName"].get<std::string>() + "_" + j[taeget_userid]["deviceGUID"].get<std::string>();
+              std::string other_guid;
+              InputManager::genJoyString( other_guid, j[taeget_userid]["DeviceID"],  j[taeget_userid]["deviceName"], j[taeget_userid]["deviceGUID"] );
               cout << "O = " << other_guid << endl << "C = " << cuurent_deviceguid_ << endl;
               if( other_guid == cuurent_deviceguid_ ){
                 cout << "Disable:" << other_guid << endl;
@@ -588,13 +593,16 @@ void MenuScreen::setCurrentInputDevices( std::map<SDL_JoystickID, SDL_Joystick*>
       SDL_JoystickID joyId = SDL_JoystickInstanceID(joy);
       char guid[65];
       SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(joy), guid, 65);
-      items.push_back(guid);
+      string key_string;
+      InputManager::genJoyString( key_string, joyId, SDL_JoystickName(joy), guid );
+
+      items.push_back(key_string);
       itemsShort.push_back(SDL_JoystickName(joy));
   }  
   itemsShort.push_back("KeyBoard");
-  items.push_back("-1");
+  items.push_back("Keyboard_-1");
   itemsShort.push_back("Disable");
-  items.push_back("-2");
+  items.push_back("Disable_-2");
 
   for( int i=0; i< player_configs_.size(); i++ ){
     ComboBox * cb = player_configs_[i].cb ;
@@ -604,10 +612,11 @@ void MenuScreen::setCurrentInputDevices( std::map<SDL_JoystickID, SDL_Joystick*>
       ss << "player" << (i+1);
       std::string userid = ss.str();      
       if( j.find(userid) != j.end() ) {
-        selguid = j[userid]["deviceGUID"];
+        InputManager::genJoyString( selguid, j[userid]["DeviceID"], j[userid]["deviceName"], j[userid]["deviceGUID"] );
       }else{
-        selguid = "-2";
+        selguid = "Disable_-2";
       }
+      printf("setCurrentInputDevices %s:%s\n", userid.c_str() ,selguid.c_str() );
       for( int i=0; i<items.size(); i++  ){
         if( items[i] == selguid ){
           cb->setSelectedIndex(i);
