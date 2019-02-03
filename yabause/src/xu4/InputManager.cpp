@@ -61,6 +61,7 @@ static const unsigned int SDL_HAT_VALUES_NUM = sizeof(SDL_HAT_VALUES) / sizeof(S
 namespace fs = boost::filesystem;
 
 InputManager* InputManager::mInstance = NULL;
+void genJoyString( string & out, SDL_JoystickID id, const string & name, const string & guid );
 
 InputManager::InputManager() : mKeyboardInputConfig(NULL)
 {
@@ -123,6 +124,13 @@ int setPlayerKeys( void * padbits, int user, int joyId, const json & player ){
     if( player.find("analogy") != player.end()) PerSetKey(genidjson(user,joyId,player["analogy"]), PERANALOG_AXIS2, padbits);
     if( player.find("analogleft") != player.end()) PerSetKey(genidjson(user,joyId,player["analogleft"]), PERANALOG_AXIS3, padbits);
     if( player.find("analogright") != player.end()) PerSetKey(genidjson(user,joyId,player["analogright"]), PERANALOG_AXIS4, padbits);  
+}
+
+void InputManager::genJoyString( string & out, SDL_JoystickID id, const string & name, const string & guid ){
+  std::stringstream ss;
+  ss << id << "_" << name << "_" << guid;
+  out = ss.str();
+  //cout << out << endl;
 }
 
 int setDefalutSettings( void * padbits ){
@@ -189,7 +197,13 @@ int mapKeys( const json & configs ){
 
   try {
     if( !p1.is_null() ){
-      string guid = p1["deviceGUID"];
+
+      string name_guid;
+      SDL_JoystickID u_joyId = p1["DeviceID"];
+      string u_JoyName = p1["deviceName"];
+      string u_JoyGuid = p1["deviceGUID"];
+      InputManager::genJoyString( name_guid, u_joyId, u_JoyName, u_JoyGuid );
+
       int joyId = -2;
       if( p1["DeviceID"] == -1 ){
         PADLOG("Player1: %s is selected\n",p1["deviceName"].get<std::string>().c_str() );
@@ -197,13 +211,16 @@ int mapKeys( const json & configs ){
       }else{
         for( int i=0; i<SDL_NumJoysticks(); i++ ){
           char cguid[65];
+          string joy_name_and_guid;
           SDL_Joystick* joy = SDL_JoystickOpen(i);
           if( joy != NULL ){
+            SDL_JoystickID _joyId = SDL_JoystickInstanceID(joy);
             SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(joy), cguid, 65);
-            if( guid == string(cguid) ){
-              SDL_JoystickID _joyId = SDL_JoystickInstanceID(joy);
-              PADLOG("Player1: %s(%d) is selected\n",p1["deviceName"].get<std::string>().c_str(), _joyId );            
+            InputManager::genJoyString( joy_name_and_guid, _joyId, SDL_JoystickName(joy), cguid );
+            if( name_guid == joy_name_and_guid ){
+              PADLOG("Player1: %s(%d) is selected\n",joy_name_and_guid.c_str(), _joyId );            
               joyId = _joyId;
+              break;
             }
             if (SDL_JoystickGetAttached(joy)) {
               SDL_JoystickClose(joy);
@@ -219,9 +236,9 @@ int mapKeys( const json & configs ){
           padbits = Per3DPadAdd(&PORTDATA1);
           PADLOG("Player1: Switch to Analog mode\n");
         }
-        string guid = p1["deviceGUID"];
-        if( configs.find(guid) != configs.end()){
-          json dev = configs[ guid ];
+        InputManager::genJoyString( name_guid, joyId, p1["deviceName"], p1["deviceGUID"] );
+        if( configs.find(name_guid) != configs.end()){
+          json dev = configs[ name_guid ];
           setPlayerKeys( padbits, user, joyId, dev );
         }
       }
@@ -256,7 +273,13 @@ int mapKeys( const json & configs ){
   try {
     user = 1;
     if( !p2.is_null() ){
-      string guid = p2["deviceGUID"];
+
+      string name_guid;
+      SDL_JoystickID u_joyId = p2["DeviceID"];
+      string u_JoyName = p2["deviceName"];
+      string u_JoyGuid = p2["deviceGUID"];
+      InputManager::genJoyString( name_guid, u_joyId, u_JoyName, u_JoyGuid );
+
       int joyId = -2;
       if( p2["DeviceID"] == -1 ){
         PADLOG("Player2: %s is selected\n",p2["deviceName"].get<std::string>().c_str() );
@@ -264,13 +287,16 @@ int mapKeys( const json & configs ){
       }else{
         for( int i=0; i<SDL_NumJoysticks(); i++ ){
           char cguid[65];
+          string joy_name_and_guid;
           SDL_Joystick* joy = SDL_JoystickOpen(i);
           if( joy != NULL ){
+            SDL_JoystickID _joyId = SDL_JoystickInstanceID(joy);
             SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(joy), cguid, 65);
-            if( guid == string(cguid) ){
-              SDL_JoystickID _joyId = SDL_JoystickInstanceID(joy);
-              PADLOG("Player2: %s(%d) is selected\n",p2["deviceName"].get<std::string>().c_str(), _joyId );
+            InputManager::genJoyString( joy_name_and_guid, _joyId, SDL_JoystickName(joy), cguid );
+            if( name_guid == joy_name_and_guid ){
+              PADLOG("Player2: %s(%d) is selected\n",joy_name_and_guid.c_str(), _joyId );
               joyId = _joyId;
+              break;
             }
             if (SDL_JoystickGetAttached(joy)) {
               SDL_JoystickClose(joy);
@@ -286,9 +312,10 @@ int mapKeys( const json & configs ){
           padbits = Per3DPadAdd(&PORTDATA2);
           PADLOG("Player2: Switch to Analog mode\n");
         }
-        string guid = p2["deviceGUID"];
-        if( configs.find(guid) != configs.end()){
-          json dev = configs[ guid ];
+        string name_guid;
+        InputManager::genJoyString( name_guid, joyId, p2["deviceName"], p2["deviceGUID"] );
+        if( configs.find(name_guid) != configs.end()){
+          json dev = configs[ name_guid ];
           setPlayerKeys( padbits, user, joyId, dev );
         }
       }
@@ -372,7 +399,7 @@ int getPlayerJsonFromInputConfig( int joy, InputConfig * inputconfig, json & pla
   player[p]["DeviceID"]   = inputconfig->getDeviceId();
   player[p]["deviceName"] = inputconfig->getDeviceName();
   player[p]["deviceGUID"] = inputconfig->getDeviceGUIDString();
-  guid = inputconfig->getDeviceGUIDString();
+  InputManager::genJoyString( guid, inputconfig->getDeviceId(), inputconfig->getDeviceName(), inputconfig->getDeviceGUIDString());
 
   // Keyborad
   if( inputconfig->getDeviceId() == -1 ){ 
@@ -575,9 +602,9 @@ void InputManager::addJoystickByDeviceIndex(int id)
   mInputConfigs[joyId] = new InputConfig(joyId, SDL_JoystickName(joy), guid);
   if(!loadInputConfig(mInputConfigs[joyId]))
   {
-    cout << "Added unconfigured joystick " << SDL_JoystickName(joy) << " (GUID: " << guid << ", instance ID: " << joyId << ", device index: " << id << ").";
+    cout << "Added unconfigured joystick " << SDL_JoystickName(joy) << " (GUID: " << guid << ", instance ID: " << joyId << ", device index: " << id << ")." << endl;
   }else{
-    cout << "Added known joystick " << SDL_JoystickName(joy) << " (instance ID: " << joyId << ", device index: " << id << ")";
+    cout << "Added known joystick " << SDL_JoystickName(joy) << " (instance ID: " << joyId << ", device index: " << id << ")"  << endl;
   }
 
   // set up the prevAxisValues
@@ -686,8 +713,9 @@ int InputManager::handleJoyEventsMenu(void) {
     SDL_Joystick* joy = it->second;
     SDL_JoystickID joyId = SDL_JoystickInstanceID(joy);
     char guid[65];
+    string joy_name_and_guid;
     SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(joy), guid, 65);
-
+    InputManager::genJoyString( joy_name_and_guid, joyId, SDL_JoystickName(joy), guid );
 
     for ( i = 0; i < SDL_JoystickNumAxes( joy ); i++ )
     {
@@ -698,7 +726,7 @@ int InputManager::handleJoyEventsMenu(void) {
       }
       else if ( cur > SDL_MEDIUM_AXIS_VALUE )
       {
-        menu_layer_->onRawInputEvent(*this, guid, "axis", i, 1);
+        menu_layer_->onRawInputEvent(*this, joy_name_and_guid.c_str(), "axis", i, 1);
       }      
     }
     
@@ -719,7 +747,7 @@ int InputManager::handleJoyEventsMenu(void) {
         hatValue = SDL_HAT_VALUES[ j ];
         if ( ~oldHatState & hatValue && newHatState & hatValue )
         {
-          if( menu_layer_->onRawInputEvent(*this, guid, "hat", i, hatValue) != -1 ){
+          if( menu_layer_->onRawInputEvent(*this, joy_name_and_guid.c_str(), "hat", i, hatValue) != -1 ){
             return 0;
           }
         }
@@ -875,9 +903,18 @@ bool InputManager::parseEventMenu(const SDL_Event& ev ){
       }
       {
         char guid[65];
+        string joy_name_and_guid;
         SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(mJoysticks[ev.jbutton.which]), guid, 65);
+
+        InputManager::genJoyString( 
+          joy_name_and_guid, 
+          SDL_JoystickInstanceID(mJoysticks[ev.jbutton.which]), 
+          SDL_JoystickName(mJoysticks[ev.jbutton.which]), 
+          guid 
+        );
+
         if( SDL_JOYBUTTONDOWN == ev.type ){
-          if( menu_layer_->onRawInputEvent(*this,guid,"button",ev.jbutton.button,1) != -1 ){
+          if( menu_layer_->onRawInputEvent(*this,joy_name_and_guid.c_str(),"button",ev.jbutton.button,1) != -1 ){
             return true;
           }
         }
@@ -921,7 +958,7 @@ bool InputManager::parseEventMenu(const SDL_Event& ev ){
       //}
     }
 
-    menu_layer_->onRawInputEvent(*this,"-1", "key",ev.key.keysym.sym,1);
+    menu_layer_->onRawInputEvent(*this,"Keyboard_-1", "key",ev.key.keysym.sym,1);
 
     if( mKeyboardInputConfig )  {
       evstr = mKeyboardInputConfig->getMappedTo(Input(DEVICE_KEYBOARD, TYPE_KEY, ev.key.keysym.sym, 1, false));
@@ -1095,7 +1132,7 @@ void InputManager::writeDeviceConfig(InputConfig* config)
 std::string InputManager::getConfigPath()
 {
   std::string path = getenv("HOME");
-  path += "/.emulationstation/es_input.cfg";
+  path += "/.emulationstation/es_temporaryinput.cfg";
   return path;
 }
 

@@ -11,6 +11,8 @@ class YWindow;
 
 class MenuScreen;
 
+using std::string;
+
 struct MenuInput {
 	uint32_t select_button_ = -1;
 	SDL_JoystickID select_device_ = -1;
@@ -44,7 +46,6 @@ private:
 	MenuScreen * menu_layer_ = nullptr;
 
   int convertFromEmustationFile( const std::string & fname );
-
 
 public:
 	virtual ~InputManager();
@@ -86,6 +87,9 @@ public:
 	void saveInputConfig( const std::string & player , const std::string & key , const std::string & type, int id , int value);
 
 	std::vector<MenuInput> menu_inputs_;
+
+public:
+	static void genJoyString( string & out, SDL_JoystickID id, const string & name, const string & guid );
 	
 };
 
