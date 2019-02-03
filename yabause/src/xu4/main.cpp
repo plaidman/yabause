@@ -401,6 +401,13 @@ int main(int argc, char** argv)
   Uint32  evUpdateConfig = SDL_RegisterEvents(1);
   menu->setUpdateConfig(evUpdateConfig);
 
+  Uint32  evOpenTray = SDL_RegisterEvents(1);
+  menu->setOpenTrayMenuEventCode(evOpenTray);
+
+  Uint32  evCloseTray = SDL_RegisterEvents(1);
+  menu->setCloseTrayMenuEventCode(evCloseTray);
+
+
   bool menu_show = false;
   std::string tmpfilename = home_dir + "tmp.png";
 
@@ -504,6 +511,28 @@ int main(int argc, char** argv)
         VdpResume();
         SNDSDL.UnMuteAudio();         
       }
+      else if(e.type == evOpenTray ){
+        menu->setCurrentGamePath(cdpath);
+        Cs2ForceOpenTray();
+        menu_show = false;
+        inputmng->setMenuLayer(nullptr);
+        SDL_GL_MakeCurrent(wnd,nullptr);
+        VdpResume();
+        SNDSDL.UnMuteAudio();         
+      }
+      else if(e.type == evCloseTray ){
+        if( e.user.data1 != nullptr ){
+          strcpy( cdpath, (const char*)e.user.data1 );
+          free(e.user.data1);
+        }
+        Cs2ForceCloseTray(CDCORE_ISO, cdpath );
+        menu_show = false;
+        inputmng->setMenuLayer(nullptr);
+        SDL_GL_MakeCurrent(wnd,nullptr);
+        VdpResume();
+        SNDSDL.UnMuteAudio();         
+      }
+
       inputmng->parseEvent(e);
       if( menu_show ){
         menu->onEvent( e );

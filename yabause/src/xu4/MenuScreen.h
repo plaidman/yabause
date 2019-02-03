@@ -58,6 +58,8 @@ public:
     ComboBox * p2cb = nullptr;
 */    
     Button *bAnalog = nullptr;
+    Button *bCdTray = nullptr;
+    bool is_cdtray_open_ = false;
 
     std::map<SDL_JoystickID, SDL_Joystick*> joysticks_;
 
@@ -90,8 +92,19 @@ public:
 	uint32_t update_config_ = 0;
 	void setUpdateConfig( uint32_t type ){ update_config_ = type; }
 
+	uint32_t open_tray_ = 0;
+	void setOpenTrayMenuEventCode( uint32_t type ){ open_tray_ = type; }
+
+	uint32_t close_tray_ = 0;
+	void setCloseTrayMenuEventCode( uint32_t type ){ close_tray_ = type; }
+
+    std::string current_game_path_;
+    void setCurrentGamePath( const char * path ){ current_game_path_ = path; }
+
 
     void showInputCheckDialog( const std::string & key );
+
+    void showFileSelectDialog( const std::string & base_path );
 
     void setupPlayerPsuhButton( int user_index, PopupButton *player, const std::string & label, ComboBox **cb );
 

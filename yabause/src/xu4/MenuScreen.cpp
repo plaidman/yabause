@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 #include <nanogui/popupbutton.h>
 #include <nanogui/messagedialog.h>
 #include <nanogui/combobox.h>
+#include <nanogui/vscrollpanel.h>
 #include "../config.h"
 #include <iostream>
 #include <fstream>
@@ -65,6 +66,39 @@ MenuScreen::MenuScreen( SDL_Window* pwindow, int rwidth, int rheight, const std:
         setupPlayerPsuhButton( 1, tmp.player, "Player2 Input Settings", &tmp.cb );
         player_configs_.push_back(tmp);
 
+        bCdTray = new Button(tools, "Open CD Tray");
+        bCdTray->setFixedWidth(248);
+        bCdTray->setCallback([this]() { 
+          if( this->is_cdtray_open_ ){
+            MENU_LOG("Close CD Tray\n"); 
+            bCdTray->setCaption("Open CD Tray");
+            this->is_cdtray_open_ = false;
+
+            showFileSelectDialog("/media/shinya/ボリューム/osusume");
+
+            /*
+            SDL_Event event = {};
+            event.type = close_tray_;
+            event.user.code = 0;
+            //event.user.data1 = malloc( 256* sizeof(char) );
+            //strcpy( (char*)event.user.data1, "filename" );
+            event.user.data2 = 0;
+            SDL_PushEvent(&event);               
+            */
+
+          }else{
+            MENU_LOG("Open CD Tray\n"); 
+            bCdTray->setCaption("Close CD Tray");
+            this->is_cdtray_open_ = true;
+            SDL_Event event = {};
+            event.type = open_tray_;
+            event.user.code = 0;
+            event.user.data1 = 0;
+            event.user.data2 = 0;
+            SDL_PushEvent(&event);
+          }
+        });
+
         Button *b0 = new Button(tools, "Exit");
         b0->setFixedWidth(248);
         b0->setCallback([this]() { 
@@ -89,7 +123,7 @@ MenuScreen::MenuScreen( SDL_Window* pwindow, int rwidth, int rheight, const std:
         Button *b2 = new Button(tools, "Show/Hide FPS");
         b2->setFixedWidth(248);
         b2->setCallback([this]() { 
-          MENU_LOG("Reset\n");  
+          MENU_LOG("Show/Hide FPS\n");  
           SDL_Event event = {};
           event.type = toggile_fps_;
           event.user.code = 0;
@@ -131,8 +165,8 @@ MenuScreen::MenuScreen( SDL_Window* pwindow, int rwidth, int rheight, const std:
         performLayout();
 }
 
-void MenuScreen::showInputCheckDialog( const std::string & key ){
 
+void MenuScreen::showInputCheckDialog( const std::string & key ){
     swindow = new Window(this, key);
     swindow->setPosition(Vector2i(0, 0));
     swindow->setLayout(new GroupLayout(32));
@@ -141,6 +175,80 @@ void MenuScreen::showInputCheckDialog( const std::string & key ){
     swindow->setModal(true);
     swindow->requestFocus();
     current_key_ = key;
+}
+
+#include <dirent.h>
+
+inline bool ends_with(std::string const & value, std::string const & ending)
+{
+    if (ending.size() > value.size()) return false;
+    return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+}
+
+void MenuScreen::showFileSelectDialog( const std::string & base_path ){
+  const int dialog_width = 512;
+  const int dialog_height = this->size()[1] - 20 ;
+    swindow = new Window(this, "Select File");
+    swindow->setPosition(Vector2i(  this->size()[0]/2 - (dialog_width/2) ,   this->size()[1]/2 - (dialog_height/2) ));
+    swindow->setFixedSize({dialog_width, dialog_height});
+    //swindow->setLayout(new GroupLayout());
+
+    auto vscroll = new VScrollPanel(swindow);
+    vscroll->setFixedSize({dialog_width, dialog_height });
+    auto wrapper = new Widget(vscroll);
+    wrapper->setFixedSize({dialog_width, dialog_height });
+    wrapper->setLayout(new GroupLayout());
+
+    DIR *dir;
+    struct dirent *ent;
+    if ((dir = opendir (base_path.c_str())) != NULL) {
+      /* print all the files and directories within directory */
+      while ((ent = readdir (dir)) != NULL) {
+        string dname = ent->d_name;
+        std::transform(dname.begin(), dname.end(), dname.begin(), ::tolower);
+        if( ends_with(dname, ".cue") || ends_with(dname, ".mdf") || ends_with(dname, ".chd") ){
+            Button *tmp = new Button(wrapper, ent->d_name );
+            string path = base_path + "/" + string(ent->d_name);
+            tmp->setCallback([this,path]() { 
+              MENU_LOG("CD Close: %s\n", path.c_str() ); 
+              SDL_Event event = {};
+              event.type = close_tray_;
+              event.user.code = 0;
+              event.user.data1 = malloc( (path.size()+1) * sizeof(char) );
+              strcpy( (char*)event.user.data1, path.c_str() );
+              event.user.data2 = 0;
+              SDL_PushEvent(&event);
+              this->swindow->dispose();
+              this->swindow = nullptr;
+            });            
+        }
+      }
+      closedir (dir);
+    } else {
+      /* could not open directory */
+      perror ("");
+      return;
+    }
+    
+    Button *b0 = new Button(wrapper, "Cancel");
+    b0->setCallback([this]() { 
+      MENU_LOG("Cancel\n"); 
+      SDL_Event event = {};
+      event.type = close_tray_;
+      event.user.code = 0;
+      //event.user.data1 = malloc( 256* sizeof(char) );
+      //strcpy( (char*)event.user.data1, "filename" );
+      event.user.data2 = 0;
+      SDL_PushEvent(&event);
+    });
+
+    //new Label(swindow,"Push key for " + key, "sans", 64);
+    //swindow->center();
+    swindow->setModal(true);
+    swindow->requestFocus();
+
+    this->performLayout();
+
 }
 
 void MenuScreen::getSelectedGUID( int user_index, std::string & selguid ){
