@@ -104,7 +104,7 @@ public:
 
     void showInputCheckDialog( const std::string & key );
 
-    void showFileSelectDialog( const std::string & base_path );
+    void showFileSelectDialog( Widget * parent, Widget * toback, const std::string & base_path );
 
     void setupPlayerPsuhButton( int user_index, PopupButton *player, const std::string & label, ComboBox **cb );
 

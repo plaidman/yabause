@@ -74,7 +74,9 @@ MenuScreen::MenuScreen( SDL_Window* pwindow, int rwidth, int rheight, const std:
             bCdTray->setCaption("Open CD Tray");
             this->is_cdtray_open_ = false;
 
-            showFileSelectDialog("/media/shinya/ボリューム/osusume");
+            size_t pos = current_game_path_.find_last_of("/");
+            string base_path = current_game_path_.substr(0,pos);
+            showFileSelectDialog( tools, bCdTray, base_path);
 
             /*
             SDL_Event event = {};
@@ -185,7 +187,7 @@ inline bool ends_with(std::string const & value, std::string const & ending)
     return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
 }
 
-void MenuScreen::showFileSelectDialog( const std::string & base_path ){
+void MenuScreen::showFileSelectDialog( Widget * parent, Widget * toback, const std::string & base_path ){
   const int dialog_width = 512;
   const int dialog_height = this->size()[1] - 20 ;
     swindow = new Window(this, "Select File");
@@ -199,14 +201,17 @@ void MenuScreen::showFileSelectDialog( const std::string & base_path ){
     wrapper->setFixedSize({dialog_width, dialog_height });
     wrapper->setLayout(new GroupLayout());
 
+    //pushActiveMenu(parent,toback);
+
     DIR *dir;
     struct dirent *ent;
+    bool first_object = true;
     if ((dir = opendir (base_path.c_str())) != NULL) {
       /* print all the files and directories within directory */
       while ((ent = readdir (dir)) != NULL) {
         string dname = ent->d_name;
         std::transform(dname.begin(), dname.end(), dname.begin(), ::tolower);
-        if( ends_with(dname, ".cue") || ends_with(dname, ".mdf") || ends_with(dname, ".chd") ){
+        if( ends_with(dname, ".cue") || ends_with(dname, ".mdf") || ends_with(dname, ".ccd") ){
             Button *tmp = new Button(wrapper, ent->d_name );
             string path = base_path + "/" + string(ent->d_name);
             tmp->setCallback([this,path]() { 
@@ -218,19 +223,25 @@ void MenuScreen::showFileSelectDialog( const std::string & base_path ){
               strcpy( (char*)event.user.data1, path.c_str() );
               event.user.data2 = 0;
               SDL_PushEvent(&event);
+              this->popActiveMenu();
               this->swindow->dispose();
               this->swindow = nullptr;
-            });            
+            });  
+            if( first_object ){
+              first_object = false;
+              pushActiveMenu(wrapper,tmp);
+            }
         }
       }
       closedir (dir);
     } else {
-      /* could not open directory */
-      perror ("");
-      return;
     }
     
     Button *b0 = new Button(wrapper, "Cancel");
+    if( first_object ){
+       first_object = false;
+       pushActiveMenu(wrapper,b0);
+    }    
     b0->setCallback([this]() { 
       MENU_LOG("Cancel\n"); 
       SDL_Event event = {};
@@ -238,8 +249,12 @@ void MenuScreen::showFileSelectDialog( const std::string & base_path ){
       event.user.code = 0;
       //event.user.data1 = malloc( 256* sizeof(char) );
       //strcpy( (char*)event.user.data1, "filename" );
-      event.user.data2 = 0;
-      SDL_PushEvent(&event);
+      //event.user.data2 = 0;
+      //SDL_PushEvent(&event);
+      this->popActiveMenu();
+      swindow->dispose();
+      swindow = nullptr;
+     //this->performLayout();
     });
 
     //new Label(swindow,"Push key for " + key, "sans", 64);
@@ -582,6 +597,7 @@ int MenuScreen::OnInputSelected( string & type, int & id, int & value ){
 
 int MenuScreen::onRawInputEvent( InputManager & imp, const std::string & deviceguid, const std::string & type, int id, int value ){
   if( swindow == nullptr ){ return -1; }
+  if( swindow->title() == "Select File"){ return -1; }
 
   cout << "onRawInputEvent deviceguid:" << deviceguid << " type:" << type << " id:" << id << " val:" << value << endl;
 
@@ -618,7 +634,7 @@ int MenuScreen::onRawInputEvent( InputManager & imp, const std::string & deviceg
 
 bool MenuScreen::keyboardEvent( std::string & keycode , int scancode, int action, int modifiers){
 
-  if( swindow != nullptr ){ return false; }
+  if( swindow != nullptr && swindow->title() != "Select File"){ return false; }
 
   MENU_LOG("%s %d %d\n",keycode.c_str(),scancode,action);
   if (action == 1) {
@@ -630,12 +646,40 @@ bool MenuScreen::keyboardEvent( std::string & keycode , int scancode, int action
       mFocus = getActiveMenu()->getNearestWidget(mFocus, 1);
       MENU_LOG("%s is selected\n",((nanogui::Button*)mFocus)->caption().c_str());
       mFocus->mouseEnterEvent(mFocus->position(), true);
+     
+      auto wrapper = mFocus->parent();
+      if( wrapper != nullptr ){
+          auto vscroll = wrapper->parent();
+          if( vscroll != nullptr && dynamic_cast<VScrollPanel*>(vscroll) != nullptr  ){
+              MENU_LOG("pos=%f vpod = %f\n",mFocus->position().y(),((VScrollPanel*)vscroll)->getScrollPos()  );
+              if( mFocus->position().y() - ((VScrollPanel*)vscroll)->getScrollPos() > vscroll->height() ){
+                Vector2i p(0,0);
+                Vector2f rel(0.0,-1.0);
+                (VScrollPanel*)vscroll->scrollEvent(p,rel);
+            }
+        }
+      }
+
     }else if (keycode == "up") {
       nanogui::Button* btn = (nanogui::Button*)mFocus;
       //btn->setPushed(false);
       mFocus->mouseEnterEvent(mFocus->position(), false);
       mFocus = getActiveMenu()->getNearestWidget(mFocus, 0);
       mFocus->mouseEnterEvent(mFocus->position(), true);
+
+      auto wrapper = mFocus->parent();
+      if( wrapper != nullptr ){
+          auto vscroll = wrapper->parent();
+          if( vscroll != nullptr ){
+              MENU_LOG("pos=%f vpod = %f\n",mFocus->position().y(),((VScrollPanel*)vscroll)->getScrollPos()  );
+              if( mFocus->position().y() - ((VScrollPanel*)vscroll)->getScrollPos() < 0 ){
+                Vector2i p(0,0);
+                Vector2f rel(0.0,1.0);
+                (VScrollPanel*)vscroll->scrollEvent(p,rel);
+            }
+        }
+      }
+
     }
     if (keycode == "a") {
         mFocus->mouseButtonEvent(mFocus->position(), SDL_BUTTON_LEFT, true, 0);
@@ -778,8 +822,10 @@ void MenuScreen::popActiveMenu(){
     for( int i=0; i<children.size(); i++ ){
       if(  dynamic_cast<Button*>(children[i]) != nullptr ){
         Widget * px = children[i];
-        mFocus->mouseEnterEvent(p->absolutePosition(),false);
-        px->mouseEnterEvent(p->absolutePosition(),true);
+        if( tmp.button != nullptr ) {
+          mFocus->mouseEnterEvent(tmp.button->absolutePosition(),false);
+          px->mouseEnterEvent(tmp.button->absolutePosition(),true);
+        }
         mFocus = px;
         mFocus->requestFocus();        
         break;
@@ -799,6 +845,10 @@ int MenuScreen::onBackButtonPressed(){
   MENU_LOG("onBackButtonPressed\n");
   
   if( swindow != nullptr ){
+
+    if( swindow->title() == "Select File"){ 
+      this->popActiveMenu();
+    }
     swindow->dispose();
     swindow = nullptr;
     return 1;    

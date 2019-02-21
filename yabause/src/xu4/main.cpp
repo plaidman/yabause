@@ -514,11 +514,13 @@ int main(int argc, char** argv)
       else if(e.type == evOpenTray ){
         menu->setCurrentGamePath(cdpath);
         Cs2ForceOpenTray();
+        if( !g_emulated_bios ) {
         menu_show = false;
         inputmng->setMenuLayer(nullptr);
         SDL_GL_MakeCurrent(wnd,nullptr);
         VdpResume();
         SNDSDL.UnMuteAudio();         
+      }
       }
       else if(e.type == evCloseTray ){
         if( e.user.data1 != nullptr ){
