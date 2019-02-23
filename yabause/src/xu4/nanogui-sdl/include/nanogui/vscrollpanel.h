@@ -36,6 +36,8 @@ public:
     virtual void draw(NVGcontext *ctx) override;
     virtual void save(Serializer &s) const override;
     virtual bool load(Serializer &s) override;
+
+    float getScrollPos() { return mScroll*(mChildPreferredHeight - mSize.y()); }
 protected:
     int mChildPreferredHeight;
     float mScroll;
