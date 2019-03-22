@@ -101,7 +101,12 @@ else ifeq ($(platform), odroid-n2)
 	DYNAREC_DEVMIYAX = 1
 	LOW_END = 1
 	# ODROID-N2
-	FLAGS += -march=armv8-a+crc -mtune=cortex-a73.cortex-a53
+	# clang-7 run at almost full speed, gcc-7.3.0 is crashing
+	ifneq (, $(findstring clang,$(CC)))
+		FLAGS += -march=armv8-a+crc
+	else
+		FLAGS += -march=armv8-a+crc -mtune=cortex-a73.cortex-a53
+	endif
 
 else ifneq (,$(findstring odroid,$(platform)))
 	override platform += unix
