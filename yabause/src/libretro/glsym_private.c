@@ -1,0 +1,4 @@
+#include "glsym/glsym.h"
+
+RGLSYMGLMEMORYBARRIERPROC __rglgen_glMemoryBarrier;
+RGLSYMGLBINDFRAGDATALOCATIONPROC __rglgen_glBindFragDataLocation;

@@ -236,9 +236,9 @@ ifeq ($(HAVE_SSE),1)
 	FLAGS += -mfpmath=sse
 endif
 
-ifeq ($(shell expr `gcc -dumpversion | cut -f1` \>= 6.0), 1)
-	FLAGS += -fno-PIE -no-pie
-endif
+#ifeq ($(shell expr `gcc -dumpversion | cut -f1` \>= 6.0), 1)
+#	FLAGS += -fno-PIE -no-pie
+#endif
 
 ifeq ($(DEBUG_ASAN), 1)
 	DEBUG = 1
@@ -268,6 +268,9 @@ endif
 ifeq ($(HAVE_GLES), 1)
 	FLAGS += -DHAVE_GLES
 	LDFLAGS += -lGLESv2
+	ifeq ($(FORCE_GLEW), 0)
+		FLAGS += -DHAVE_OPENGLES -DHAVE_OPENGLES3 -DHAVE_GLSYM_PRIVATE
+	endif
 endif
 
 ifeq ($(LOW_END), 1)
@@ -293,7 +296,7 @@ ifeq ($(FASTMATH), 1)
 endif
 
 ifeq ($(FORCE_GLEW), 1)
-	FLAGS += -DGLEW_STATIC -D_USEGLEW_
+	FLAGS += -DGLEW_STATIC -D_USEGLEW_ -DGLEW_NO_GLU
 endif
 
 OBJECTS += $(OBJECTS_C) $(OBJECTS_CXX) $(OBJECTS_S)

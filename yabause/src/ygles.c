@@ -50,7 +50,7 @@ extern vdp2rotationparameter_struct  paraA;
 
 #define ATLAS_BIAS (0.025f)
 
-#if defined(__ANDROID__) || defined(IOS)
+#if (defined(__ANDROID__) || defined(IOS)) && !defined(__LIBRETRO__)
 PFNGLPATCHPARAMETERIPROC glPatchParameteri = NULL;
 PFNGLMEMORYBARRIERPROC glMemoryBarrier = NULL;
 #endif
@@ -1201,7 +1201,7 @@ int YglInit(int width, int height, unsigned int depth) {
   glewInit();
 #endif
 
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) && !defined(__LIBRETRO__)
   glPatchParameteri = (PFNGLPATCHPARAMETERIPROC)eglGetProcAddress("glPatchParameteri");
   glMemoryBarrier = (PFNGLPATCHPARAMETERIPROC)eglGetProcAddress("glMemoryBarrier");
 #endif
