@@ -91,7 +91,7 @@ extern u32 tweak_backup_file_addr;
  * e.g. for implementing autosave of backup RAM. */
 u8 BupRamWritten;
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(_WINDOWS)
 
 #include <stdio.h>
 #include <sys/types.h>
