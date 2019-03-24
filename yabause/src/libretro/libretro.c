@@ -74,7 +74,11 @@ static retro_input_state_t input_state_cb;
 static retro_environment_t environ_cb;
 static retro_audio_sample_batch_t audio_batch_cb;
 
+#if defined(_USEGLEW_)
+static struct retro_hw_render_callback hw_render;
+#else
 extern struct retro_hw_render_callback hw_render;
+#endif
 
 void retro_set_environment(retro_environment_t cb)
 {
@@ -419,7 +423,9 @@ M68K_struct *M68KCoreList[] = {
 SH2Interface_struct *SH2CoreList[] = {
     &SH2Interpreter,
     &SH2DebugInterpreter,
+#ifdef DYNAREC_DEVMIYAX
     &SH2Dyn,
+#endif
     NULL
 };
 
@@ -470,12 +476,16 @@ static int first_ctx_reset = 1;
 
 int YuiUseOGLOnThisThread()
 {
-  return glsm_ctl(GLSM_CTL_STATE_BIND, NULL);;
+#if !defined(_USEGLEW_)
+  return glsm_ctl(GLSM_CTL_STATE_BIND, NULL);
+#endif
 }
 
 int YuiRevokeOGLOnThisThread()
 {
+#if !defined(_USEGLEW_)
   return glsm_ctl(GLSM_CTL_STATE_UNBIND, NULL);
+#endif
 }
 
 int YuiGetFB(void)
@@ -490,17 +500,6 @@ void retro_reinit_av_info(void)
     environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &av_info);
 }
 
-void YuiSwapBuffers(void)
-{
-   int prev_game_width = game_width;
-   int prev_game_height = game_height;
-   VIDCore->GetNativeResolution(&game_width, &game_height, &game_interlace);
-   if ((prev_game_width != game_width) || (prev_game_height != game_height))
-      retro_set_resolution();
-   audio_size = soundlen;
-   video_cb(RETRO_HW_FRAME_BUFFER_VALID, current_width, current_height, 0);
-}
-
 void retro_set_resolution()
 {
    // If resolution_mode > initial_resolution_mode, we'll need a restart to reallocate the max size for buffer
@@ -510,9 +509,9 @@ void retro_set_resolution()
       resolution_mode = initial_resolution_mode;
    }
    // Downscale resolution_mode for Hi-Res games
-   if (game_height > 256 && resolution_mode > max_resolution_mode)
+   if (game_height > 256 && resolution_mode > max_resolution_mode/2)
    {
-      log_cb(RETRO_LOG_INFO, "Hi-Res games limited to x8\n", resolution_mode);
+      log_cb(RETRO_LOG_INFO, "Halving Hi-Res games resolution mode\n", resolution_mode);
       resolution_mode = max_resolution_mode/2;
    }
    switch(resolution_mode)
@@ -534,10 +533,23 @@ void retro_set_resolution()
    VIDCore->SetSettingValue(VDP_SETTING_RESOLUTION_MODE, g_resolution_mode);
 }
 
+void YuiSwapBuffers(void)
+{
+   int prev_game_width = game_width;
+   int prev_game_height = game_height;
+   VIDCore->GetNativeResolution(&game_width, &game_height, &game_interlace);
+   if ((prev_game_width != game_width) || (prev_game_height != game_height))
+      retro_set_resolution();
+   audio_size = soundlen;
+   video_cb(RETRO_HW_FRAME_BUFFER_VALID, current_width, current_height, 0);
+}
+
 static void context_reset(void)
 {
+#if !defined(_USEGLEW_)
    glsm_ctl(GLSM_CTL_STATE_CONTEXT_RESET, NULL);
    glsm_ctl(GLSM_CTL_STATE_SETUP, NULL);
+#endif
    if (first_ctx_reset == 1)
    {
       first_ctx_reset = 0;
@@ -547,19 +559,34 @@ static void context_reset(void)
    }
    else
    {
-      //VIDCore->Init();
       retro_set_resolution();
    }
 }
 
 static void context_destroy(void)
 {
-   //VIDCore->DeInit();
+#if !defined(_USEGLEW_)
    glsm_ctl(GLSM_CTL_STATE_CONTEXT_DESTROY, NULL);
+#endif
 }
 
 static bool retro_init_hw_context(void)
 {
+#if defined(_USEGLEW_)
+   hw_render.context_reset = context_reset;
+   hw_render.context_destroy = context_destroy;
+   hw_render.depth = true;
+   hw_render.bottom_left_origin = true;
+#ifdef HAVE_GLES
+   hw_render.context_type = RETRO_HW_CONTEXT_OPENGLES3;
+   if (!environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER, &hw_render))
+      return false;
+#else
+   hw_render.context_type = RETRO_HW_CONTEXT_OPENGL;
+   if (!environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER, &hw_render))
+       return false;
+#endif
+#else
    glsm_ctx_params_t params = {0};
    params.context_reset = context_reset;
    params.context_destroy = context_destroy;
@@ -575,6 +602,7 @@ static bool retro_init_hw_context(void)
    params.context_type = RETRO_HW_CONTEXT_OPENGL;
    if (!glsm_ctl(GLSM_CTL_STATE_CONTEXT_INIT, &params))
       return false;
+#endif
 #endif
    return true;
 }
@@ -834,7 +862,11 @@ bool retro_load_game_common()
 
    yinit.vidcoretype               = VIDCORE_OGL;
    yinit.percoretype               = PERCORE_LIBRETRO;
+#ifdef DYNAREC_DEVMIYAX
    yinit.sh2coretype               = 3;
+#else
+   yinit.sh2coretype               = SH2CORE_INTERPRETER;
+#endif
    yinit.sndcoretype               = SNDCORE_LIBRETRO;
 #ifdef HAVE_MUSASHI
    yinit.m68kcoretype              = M68KCORE_MUSASHI;

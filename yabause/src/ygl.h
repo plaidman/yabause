@@ -25,7 +25,7 @@ extern "C" {
 
 #if defined(HAVE_LIBGL) || defined(__ANDROID__) || defined(IOS)
 
-#if defined(__LIBRETRO__)
+#if defined(__LIBRETRO__) && !defined(_USEGLEW_)
     #include <glsym/glsym.h>
     #include <glsm/glsm.h>
 #elif defined(__ANDROID__)

@@ -7,9 +7,13 @@ HAVE_MUSASHI = 1
 HAVE_GLES = 0
 FASTMATH = 1
 LOW_END = 0
+DYNAREC_DEVMIYAX = 0
 USE_ARM_DRC = 0
 USE_AARCH64_DRC = 0
-# USE_X86_DRC = 0
+USE_X86_DRC = 0
+ARCH_IS_LINUX = 0
+ARCH_IS_MACOSX = 0
+FORCE_GLEW = 0
 
 ifeq ($(platform),)
 	platform = unix
@@ -56,8 +60,8 @@ ifneq (,$(findstring unix,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.so
 	fpic := -fPIC
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
-	LDFLAGS += -lpthread
-	FLAGS += -DARCH_IS_LINUX=1
+	LDFLAGS += -lpthread -lGL
+	ARCH_IS_LINUX = 1
 	# ARM
 	ifneq (,$(findstring armv,$(platform)))
 		ifneq (,$(findstring cortexa8,$(platform)))
@@ -77,12 +81,9 @@ ifneq (,$(findstring unix,$(platform)))
 		endif
 		HAVE_GLES = 1
 		HAVE_SSE = 0
+		USE_ARM_DRC = 1
+		DYNAREC_DEVMIYAX = 1
 		FLAGS += -DARM
-	endif
-	ifeq ($(HAVE_GLES), 1)
-		LDFLAGS += -lGL -lGLESv2
-	else
-		LDFLAGS += -lGL
 	endif
 
 # ODROIDs
@@ -91,33 +92,31 @@ else ifeq ($(platform), odroid-n2)
 	TARGET := $(TARGET_NAME)_libretro.so
 	fpic := -fPIC
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
-	LDFLAGS += -lpthread
-	FLAGS += -DARCH_IS_LINUX=1
+	LDFLAGS += -lpthread -lGL
+	FLAGS +=  -DAARCH64
+	ARCH_IS_LINUX = 1
 	HAVE_SSE = 0
 	HAVE_GLES = 1
 	USE_AARCH64_DRC = 1
+	DYNAREC_DEVMIYAX = 1
 	LOW_END = 1
 	# ODROID-N2
-	FLAGS += -marm -march=armv8-a+crc -mtune=cortex-a73.cortex-a53
-	ifeq ($(HAVE_GLES), 1)
-		LDFLAGS += -lGL -lGLESv2
-	else
-		LDFLAGS += -lGL
-	endif
+	FLAGS += -march=armv8-a+crc -mtune=cortex-a73.cortex-a53
 
 else ifneq (,$(findstring odroid,$(platform)))
 	override platform += unix
 	TARGET := $(TARGET_NAME)_libretro.so
 	fpic := -fPIC
 	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
-	LDFLAGS += -lpthread
-	FLAGS += -DARCH_IS_LINUX=1
+	LDFLAGS += -lpthread -lGL
+	ARCH_IS_LINUX = 1
 	BOARD := $(shell cat /proc/cpuinfo | grep -i odroid | awk '{print $$3}')
 
 	ifneq (,$(findstring ODROID-XU3,$(BOARD)))
 		HAVE_SSE = 0
 		HAVE_GLES = 1
 		USE_ARM_DRC = 1
+		DYNAREC_DEVMIYAX = 1
 		LOW_END = 1
 		# ODROID-XU3 & -XU3 Lite
 		ifeq "$(shell expr `gcc -dumpversion` \>= 4.9)" "1"
@@ -129,6 +128,7 @@ else ifneq (,$(findstring odroid,$(platform)))
 		HAVE_SSE = 0
 		HAVE_GLES = 1
 		USE_ARM_DRC = 1
+		DYNAREC_DEVMIYAX = 1
 		LOW_END = 1
 		# ODROID-XU4 on newer kernels now identify as ODROID-XU4
 		ifeq "$(shell expr `gcc -dumpversion` \>= 4.9)" "1"
@@ -137,29 +137,23 @@ else ifneq (,$(findstring odroid,$(platform)))
 			FLAGS += -marm -mfloat-abi=hard -mcpu=cortex-a9 -mfpu=neon
 		endif
 	endif
-	ifeq ($(HAVE_GLES), 1)
-		LDFLAGS += -lGL -lGLESv2
-	else
-		LDFLAGS += -lGL
-	endif
 
 # OS X
 else ifneq (,$(findstring osx,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.dylib
 	fpic := -fPIC
-OSXVER = $(shell sw_vers -productVersion | cut -d. -f 2)
+	OSXVER = $(shell sw_vers -productVersion | cut -d. -f 2)
 	OSX_GT_MOJAVE = $(shell (( $(OSXVER) >= 14)) && echo "YES")
-ifneq ($(OSX_GT_MOJAVE),YES)
-	#this breaks compiling on Mac OS Mojave
-	fpic += -mmacosx-version-min=10.1
-endif
-	FLAGS += -DARCH_IS_MACOSX=1
+	ifneq ($(OSX_GT_MOJAVE),YES)
+		#this breaks compiling on Mac OS Mojave
+		fpic += -mmacosx-version-min=10.1
+	endif
+	ARCH_IS_MACOSX = 1
 	SHARED := -dynamiclib
-	FLAGS += -DARCH_IS_MACOSX=1
-ifeq ($(arch),ppc)
-	ENDIANNESS_DEFINES := -DWORDS_BIGENDIAN -DMSB_FIRST -D__ppc__
-endif
-	LDFLAGS += -lpthread -lGL -lGLESv2
+	ifeq ($(arch),ppc)
+		ENDIANNESS_DEFINES := -DWORDS_BIGENDIAN -DMSB_FIRST -D__ppc__
+	endif
+	LDFLAGS += -lpthread -framework OpenGL
 
 else ifneq (,$(findstring ios,$(platform)))
 	# iOS
@@ -273,10 +267,23 @@ endif
 
 ifeq ($(HAVE_GLES), 1)
 	FLAGS += -DHAVE_GLES
+	LDFLAGS += -lGLESv2
 endif
 
 ifeq ($(LOW_END), 1)
 	FLAGS += -DLOW_END
+endif
+
+ifeq ($(ARCH_IS_LINUX), 1)
+	FLAGS += -DARCH_IS_LINUX=1
+endif
+
+ifeq ($(ARCH_IS_MACOSX), 1)
+	FLAGS += -DARCH_IS_MACOSX=1
+endif
+
+ifeq ($(DYNAREC_DEVMIYAX), 1)
+	FLAGS += -DDYNAREC_DEVMIYAX=1
 endif
 
 ifeq ($(FASTMATH), 1)
@@ -285,23 +292,28 @@ ifeq ($(FASTMATH), 1)
 	endif
 endif
 
+ifeq ($(FORCE_GLEW), 1)
+	FLAGS += -DGLEW_STATIC -D_USEGLEW_
+endif
+
 OBJECTS += $(OBJECTS_C) $(OBJECTS_CXX) $(OBJECTS_S)
 
 LDFLAGS += $(fpic) $(SHARED)
 FLAGS += $(fpic)
 
+INCFLAGS := $(foreach dir,$(INCLUDE_DIRS),-I$(dir))
+
 WARNINGS :=
 FLAGS += $(INCFLAGS) -D__LIBRETRO__ $(ENDIANNESS_DEFINES) -DSIZEOF_DOUBLE=8 $(WARNINGS) -DUSE_16BPP=1 -DUSE_RGB_565=1 \
 	-DNO_CLI -DHAVE_BUILTIN_BSWAP16=1 -DHAVE_BUILTIN_BSWAP32=1 -DHAVE_C99_VARIADIC_MACROS=1 \
 	-DHAVE_FLOORF=1 -DHAVE_GETTIMEOFDAY=1 -DHAVE_STDINT_H=1 -DHAVE_SYS_TIME_H=1 -DIMPROVED_SAVESTATES \
-	-DHAVE_LIBGL -D_OGLES3_ -DVDP1_TEXTURE_ASYNC=1 -DHAVE_THREADS=1 \
-	-DVERSION=\"2.3.1\"
+	-DHAVE_LIBGL -D_OGLES3_ -DVERSION=\"2.3.1\"
 
 CXXFLAGS += $(FLAGS)
-CXXFLAGS += -std=gnu++11 -funroll-loops
+CXXFLAGS += -std=gnu++11 -funroll-loops -fomit-frame-pointer
 
 CFLAGS += $(FLAGS)
-CFLAGS += -std=gnu99 -funroll-loops
+CFLAGS += -std=gnu99 -funroll-loops -fomit-frame-pointer
 
 all: $(TARGET)
 
@@ -344,6 +356,6 @@ $(C68KEXEC_OBJECT): $(C68KEXEC_SOURCE)
 	$(CC) -c -o $@ $< $(CFLAGS) -O0
 
 clean:
-	rm -f $(TARGET) $(OBJECTS)
+	rm -f $(TARGET) $(OBJECTS) $(SOURCE_DIR)/musashi/$(M68KMAKE_EXE) $(SOURCE_DIR)/c68k/$(GEN68K_EXE)
 
 .PHONY: clean

@@ -28,7 +28,7 @@
 #include "vidshared.h"
 #include "shaders/FXAA_DefaultES.h"
 
-#if defined(__ANDROID__) || defined(_WINDOWS)
+#if (defined(__ANDROID__) || defined(_WINDOWS)) && !defined(__LIBRETRO__)
 #define YGLLOG yprintf
 #else
 #define YGLLOG printf
