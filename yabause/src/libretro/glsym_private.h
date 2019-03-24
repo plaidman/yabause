@@ -4,6 +4,7 @@
 extern "C" {
 #endif
 
+#if defined(HAVE_GLES)
 typedef double GLclampd;
 typedef double GLdouble;
 typedef void (GL_APIENTRYP RGLSYMGLMEMORYBARRIERPROC) (GLbitfield barriers);
@@ -22,6 +23,13 @@ typedef void (GL_APIENTRYP RGLSYMGLBINDFRAGDATALOCATIONPROC) (GLuint program, GL
 
 extern RGLSYMGLMEMORYBARRIERPROC __rglgen_glMemoryBarrier;
 extern RGLSYMGLBINDFRAGDATALOCATIONPROC __rglgen_glBindFragDataLocation;
+#elif !defined(_OGLES3_)
+typedef void (APIENTRYP RGLSYMGLTEXTUREBARRIERNVPROC) (void);
+
+#define glTextureBarrierNV __rglgen_glTextureBarrierNV
+
+extern RGLSYMGLTEXTUREBARRIERNVPROC __rglgen_glTextureBarrierNV;
+#endif
 
 #ifdef __cplusplus
 }

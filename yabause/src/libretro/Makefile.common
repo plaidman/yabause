@@ -61,10 +61,10 @@ ifeq ($(FORCE_GLEW), 1)
 	INCLUDE_DIRS += $(SOURCE_DIR)/gllibs/include
 else
 	SOURCES_C += $(LIBRETRO_COMM_DIR)/glsm/glsm.c \
-		$(LIBRETRO_COMM_DIR)/glsym/rglgen.c
+		$(LIBRETRO_COMM_DIR)/glsym/rglgen.c \
+		$(CORE_DIR)/glsym_private.c
 	ifeq ($(HAVE_GLES), 1)
-		SOURCES_C += $(LIBRETRO_COMM_DIR)/glsym/glsym_es3.c \
-			$(CORE_DIR)/glsym_private.c
+		SOURCES_C += $(LIBRETRO_COMM_DIR)/glsym/glsym_es3.c
 	else
 		SOURCES_C += $(LIBRETRO_COMM_DIR)/glsym/glsym_gl.c
 	endif

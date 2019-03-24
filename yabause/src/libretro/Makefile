@@ -6,6 +6,8 @@ __USE_OPENGL_DEBUG__ = 0
 HAVE_MUSASHI = 1
 HAVE_GLES = 0
 FASTMATH = 1
+# Tesselation is broken in yabasanshiro ?
+ALLOW_POLYGON_MODE = 0
 LOW_END = 0
 DYNAREC_DEVMIYAX = 0
 USE_ARM_DRC = 0
@@ -99,9 +101,9 @@ else ifeq ($(platform), odroid-n2)
 	HAVE_GLES = 1
 	USE_AARCH64_DRC = 1
 	DYNAREC_DEVMIYAX = 1
-	LOW_END = 1
+	ALLOW_POLYGON_MODE = 0
 	# ODROID-N2
-	# clang-7 run at almost full speed, gcc-7.3.0 is crashing
+	# clang-7 run at almost full speed, gcc is crashing
 	ifneq (, $(findstring clang,$(CC)))
 		FLAGS += -march=armv8-a+crc
 	else
@@ -123,6 +125,7 @@ else ifneq (,$(findstring odroid,$(platform)))
 		USE_ARM_DRC = 1
 		DYNAREC_DEVMIYAX = 1
 		LOW_END = 1
+		ALLOW_POLYGON_MODE = 0
 		# ODROID-XU3 & -XU3 Lite
 		ifeq "$(shell expr `gcc -dumpversion` \>= 4.9)" "1"
 			FLAGS += -marm -mfloat-abi=hard -mcpu=cortex-a15 -mtune=cortex-a15.cortex-a7 -mfpu=neon-vfpv4 -mvectorize-with-neon-quad
@@ -135,6 +138,7 @@ else ifneq (,$(findstring odroid,$(platform)))
 		USE_ARM_DRC = 1
 		DYNAREC_DEVMIYAX = 1
 		LOW_END = 1
+		ALLOW_POLYGON_MODE = 0
 		# ODROID-XU4 on newer kernels now identify as ODROID-XU4
 		ifeq "$(shell expr `gcc -dumpversion` \>= 4.9)" "1"
 			FLAGS += -marm -mfloat-abi=hard -mcpu=cortex-a15 -mtune=cortex-a15.cortex-a7 -mfpu=neon-vfpv4 -mvectorize-with-neon-quad
@@ -274,12 +278,16 @@ ifeq ($(HAVE_GLES), 1)
 	FLAGS += -DHAVE_GLES
 	LDFLAGS += -lGLESv2
 	ifeq ($(FORCE_GLEW), 0)
-		FLAGS += -DHAVE_OPENGLES -DHAVE_OPENGLES3 -DHAVE_GLSYM_PRIVATE
+		FLAGS += -DHAVE_OPENGLES -DHAVE_OPENGLES3
 	endif
 endif
 
 ifeq ($(LOW_END), 1)
 	FLAGS += -DLOW_END
+endif
+
+ifeq ($(ALLOW_POLYGON_MODE), 1)
+	FLAGS += -DALLOW_POLYGON_MODE
 endif
 
 ifeq ($(ARCH_IS_LINUX), 1)
@@ -302,6 +310,8 @@ endif
 
 ifeq ($(FORCE_GLEW), 1)
 	FLAGS += -DGLEW_STATIC -D_USEGLEW_ -DGLEW_NO_GLU
+else
+	FLAGS += -DHAVE_GLSYM_PRIVATE
 endif
 
 OBJECTS += $(OBJECTS_C) $(OBJECTS_CXX) $(OBJECTS_S)
@@ -315,7 +325,7 @@ WARNINGS :=
 FLAGS += $(INCFLAGS) -D__LIBRETRO__ $(ENDIANNESS_DEFINES) -DSIZEOF_DOUBLE=8 $(WARNINGS) -DUSE_16BPP=1 -DUSE_RGB_565=1 \
 	-DNO_CLI -DHAVE_BUILTIN_BSWAP16=1 -DHAVE_BUILTIN_BSWAP32=1 -DHAVE_C99_VARIADIC_MACROS=1 \
 	-DHAVE_FLOORF=1 -DHAVE_GETTIMEOFDAY=1 -DHAVE_STDINT_H=1 -DHAVE_SYS_TIME_H=1 -DIMPROVED_SAVESTATES \
-	-DHAVE_LIBGL -D_OGLES3_ -DVERSION=\"2.3.1\"
+	-DHAVE_LIBGL -DVERSION=\"2.3.1\" -D_OGLES3_
 
 CXXFLAGS += $(FLAGS)
 CXXFLAGS += -std=gnu++11 -funroll-loops -fomit-frame-pointer

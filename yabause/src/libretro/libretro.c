@@ -49,7 +49,11 @@ static int game_interlace;
 static int current_width;
 static int current_height;
 
+static bool renderer_running = false;
 static bool hle_bios_force = false;
+
+static int g_frame_skip = 1;
+static int g_videoformattype = VIDEOFORMATTYPE_NTSC;
 static int addon_cart_type = CART_DRAM32MBIT;
 static int resolution_mode = 1;
 static int initial_resolution_mode = 0;
@@ -84,11 +88,15 @@ void retro_set_environment(retro_environment_t cb)
 {
    static const struct retro_variable vars[] = {
       { "yabasanshiro_force_hle_bios", "Force HLE BIOS (restart, deprecated, debug only); disabled|enabled" },
+      { "yabasanshiro_frameskip", "Auto-frameskip (prevent fast-forwarding); enabled|disabled" },
+      { "yabasanshiro_videoformattype", "Video format; NTSC|PAL" },
       { "yabasanshiro_addon_cart", "Addon Cartridge (restart); 4M_extended_ram|1M_extended_ram" },
       { "yabasanshiro_multitap_port1", "6Player Adaptor on Port 1; disabled|enabled" },
       { "yabasanshiro_multitap_port2", "6Player Adaptor on Port 2; disabled|enabled" },
-#ifndef LOW_END
+#ifdef ALLOW_POLYGON_MODE
       { "yabasanshiro_polygon_mode", "Polygon Mode; perspective_correction|gpu_tesselation|cpu_tesselation" },
+#endif
+#ifndef LOW_END
       { "yabasanshiro_resolution_mode", "Resolution Mode; original|2x|4x" },
 #else
       { "yabasanshiro_resolution_mode", "Resolution Mode; original|2x" },
@@ -554,17 +562,23 @@ static void context_reset(void)
    {
       first_ctx_reset = 0;
       YabauseInit(&yinit);
+      renderer_running = true;
       retro_set_resolution();
+      YabThreadSetCurrentThreadAffinityMask(0x00);
       OSDChangeCore(OSDCORE_DUMMY);
    }
    else
    {
+      VIDCore->Init();
+      renderer_running = true;
       retro_set_resolution();
    }
 }
 
 static void context_destroy(void)
 {
+   VIDCore->DeInit();
+   renderer_running = false;
 #if !defined(_USEGLEW_)
    glsm_ctl(GLSM_CTL_STATE_CONTEXT_DESTROY, NULL);
 #endif
@@ -640,6 +654,26 @@ void check_variables(void)
          hle_bios_force = true;
    }
 
+   var.key = "yabasanshiro_frameskip";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (strcmp(var.value, "enabled") == 0)
+         g_frame_skip = 1;
+      else if (strcmp(var.value, "disabled") == 0)
+         g_frame_skip = 0;
+   }
+
+   var.key = "yabasanshiro_videoformattype";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (strcmp(var.value, "NTSC") == 0)
+         g_videoformattype = VIDEOFORMATTYPE_NTSC;
+      else if (strcmp(var.value, "PAL") == 0)
+         g_videoformattype = VIDEOFORMATTYPE_PAL;
+   }
+
    var.key = "yabasanshiro_addon_cart";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -695,7 +729,7 @@ void check_variables(void)
 #endif
    }
 
-#ifndef LOW_END
+#ifdef ALLOW_POLYGON_MODE
    var.key = "yabasanshiro_polygon_mode";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -873,10 +907,8 @@ bool retro_load_game_common()
 #else
    yinit.m68kcoretype              = M68KCORE_C68K;
 #endif
-   yinit.regionid                  = REGION_AUTODETECT;
    yinit.mpegpath                  = NULL;
-   // There was some misunderstanding about frameskip, disabling frameskip is actually just enabling a limiter, which is bad in the libretro ecosystem
-   yinit.frameskip                 = 1;
+   yinit.frameskip                 = g_frame_skip;
    yinit.usethreads                = 0;
    yinit.rotate_screen             = 0;
    yinit.skip_load                 = 0;
@@ -887,6 +919,8 @@ bool retro_load_game_common()
    yinit.scsp_sync_count_per_frame = 1;
    yinit.extend_backup             = 1;
    yinit.scsp_main_mode            = 1;
+   yinit.videoformattype           = g_videoformattype;
+   yinit.video_filter_type         = 0;
 
    return true;
 }
@@ -1168,6 +1202,8 @@ bool retro_load_game_special(unsigned game_type, const struct retro_game_info *i
 
 void retro_unload_game(void)
 {
+   if (!renderer_running)
+      VIDCore->Init();
    YabauseDeInit();
 }
 
@@ -1197,7 +1233,8 @@ void retro_deinit(void)
 
 void retro_reset(void)
 {
-   YabauseResetNoLoad();
+   YabauseReset();
+   VdpResume();
    // The following function crashes the core when you use "restart"
    //YabauseResetButton();
 }
@@ -1214,6 +1251,7 @@ void retro_run(void)
       if(prev_resolution_mode != resolution_mode)
          retro_set_resolution();
       VIDCore->SetSettingValue(VDP_SETTING_POLYGON_MODE, polygon_mode);
+      YabauseSetVideoFormat(g_videoformattype);
    }
 
    //YabauseExec(); runs from handle events
