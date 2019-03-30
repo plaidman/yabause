@@ -1241,6 +1241,21 @@ void retro_reset(void)
    //YabauseResetButton();
 }
 
+void reset_global_gl_state()
+{
+   glUseProgram(0);
+   glGetError();
+   glBindBuffer(GL_ARRAY_BUFFER, 0);
+   glBindBuffer(GL_PIXEL_UNPACK_BUFFER,0);
+   glDisableVertexAttribArray(0);
+   glDisableVertexAttribArray(1);
+   glDisableVertexAttribArray(2);
+   glDisable(GL_DEPTH_TEST);
+   glDisable(GL_SCISSOR_TEST);
+   glDisable(GL_STENCIL_TEST);
+   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);   
+}
+
 void retro_run(void)
 {
    unsigned i;
@@ -1256,15 +1271,17 @@ void retro_run(void)
          retro_set_resolution();
       VIDCore->SetSettingValue(VDP_SETTING_POLYGON_MODE, polygon_mode);
       YabauseSetVideoFormat(g_videoformattype);
-      if (g_frame_skip == 1)
-          EnableAutoFrameSkip();
+      if(g_frame_skip == 1)
+         EnableAutoFrameSkip();
       else
-          DisableAutoFrameSkip();
+         DisableAutoFrameSkip();
    }
 
    //YabauseExec(); runs from handle events
    if(PERCore)
       PERCore->HandleEvents();
+
+   reset_global_gl_state();
 }
 
 #ifdef ANDROID
