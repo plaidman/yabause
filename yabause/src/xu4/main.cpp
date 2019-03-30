@@ -62,14 +62,14 @@ extern "C" {
 
 extern "C" {
 static char biospath[256] = "/home/pigaming/RetroPie/BIOS/saturn/bios.bin";
-static char cdpath[256] = "/home/pigaming/RetroPie/roms/saturn/nights.cue";
+static char cdpath[256] = ""; ///home/pigaming/RetroPie/roms/saturn/nights.cue";
 //static char cdpath[256] = "/home/pigaming/RetroPie/roms/saturn/gd.cue";
 //static char cdpath[256] = "/home/pigaming/RetroPie/roms/saturn/Virtua Fighter Kids (1996)(Sega)(JP).ccd";
 static char buppath[256] = "./back.bin";
 static char mpegpath[256] = "\0";
 static char cartpath[256] = "\0";
 
-#define LOG
+#define LOG printf
 
 M68K_struct * M68KCoreList[] = {
   &M68KDummy,
@@ -222,7 +222,7 @@ int yabauseinit()
   yinit.usethreads = 0;
   yinit.skip_load = 0;    
   yinit.video_filter_type = 0;
-  yinit.polygon_generation_mode = PERSPECTIVE_CORRECTION; ////GPU_TESSERATION;
+  yinit.polygon_generation_mode = PERSPECTIVE_CORRECTION; /*GPU_TESSERATION;*/
   yinit.use_new_scsp = 1;
   yinit.resolution_mode = g_resolution_mode;
   yinit.rotate_screen = 0;

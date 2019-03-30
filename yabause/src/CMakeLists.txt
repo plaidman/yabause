@@ -150,6 +150,7 @@ if (YAB_WANT_DYNAREC_DEVMIYAX)
 					sh2_dynarec_devmiyax/dynalib_arm.s)
 			elseif("${CMAKE_SYSTEM_PROCESSOR}" MATCHES  "aarch64")
 				enable_language(ASM-ATT)
+                                add_definitions(-DAARCH64) 
 				set(yabause_SOURCES 
 				  ${yabause_SOURCES}
 					sh2_dynarec_devmiyax/dynalib_arm64.s)
@@ -855,7 +856,7 @@ endif()
 if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64")
 		add_definitions(-DAARCH64)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -std=c99 -march=armv8-a -mtune=cortex-a57.cortex-a53 ")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -march=armv8-a -mtune=cortex-a57.cortex-a53 -std=c++11 -fno-exceptions -fno-rtti ")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -march=armv8-a -mtune=cortex-a57.cortex-a53 -std=c++11 ")
 endif()
 
 # Warnings defined to know when we're breaking compilation with MSVC
