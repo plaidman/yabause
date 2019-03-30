@@ -41,7 +41,7 @@ LOCAL_C_INCLUDES   := $(INCLUDE_DIRS)
 LOCAL_CFLAGS       := -std=gnu99 $(COMMON_FLAGS)
 LOCAL_CPPFLAGS     := -std=gnu++11 $(COMMON_FLAGS)
 LOCAL_LDFLAGS      := -Wl,-version-script=$(CORE_DIR)/link.T
-LOCAL_LDLIBS       := -lGLESv3
+LOCAL_LDLIBS       := -lGL -lGLESv2
 LOCAL_CPP_FEATURES := exceptions rtti
 LOCAL_ARM_MODE     := arm
 
