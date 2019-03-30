@@ -564,12 +564,13 @@ static void context_reset(void)
       YabauseInit(&yinit);
       renderer_running = true;
       retro_set_resolution();
-      YabThreadSetCurrentThreadAffinityMask(0x00);
+      //YabThreadSetCurrentThreadAffinityMask(0x00);
       OSDChangeCore(OSDCORE_DUMMY);
    }
    else
    {
-      VIDCore->Init();
+      if (!renderer_running)
+         VIDCore->Init();
       renderer_running = true;
       retro_set_resolution();
    }
@@ -577,7 +578,8 @@ static void context_reset(void)
 
 static void context_destroy(void)
 {
-   VIDCore->DeInit();
+   if (renderer_running)
+      VIDCore->DeInit();
    renderer_running = false;
 #if !defined(_USEGLEW_)
    glsm_ctl(GLSM_CTL_STATE_CONTEXT_DESTROY, NULL);
@@ -1244,6 +1246,8 @@ void retro_run(void)
    unsigned i;
    bool updated  = false;
 
+   //YabThreadSetCurrentThreadAffinityMask(0x00);
+
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
    {
       int prev_resolution_mode = resolution_mode;
@@ -1252,6 +1256,10 @@ void retro_run(void)
          retro_set_resolution();
       VIDCore->SetSettingValue(VDP_SETTING_POLYGON_MODE, polygon_mode);
       YabauseSetVideoFormat(g_videoformattype);
+      if (g_frame_skip == 1)
+          EnableAutoFrameSkip();
+      else
+          DisableAutoFrameSkip();
    }
 
    //YabauseExec(); runs from handle events
