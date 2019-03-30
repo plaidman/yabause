@@ -57,6 +57,11 @@ DynarecSh2 * DynarecSh2::CurrentContext = NULL;
 //#define cacheflush __builtin___clear_cache
 #else
 //#if !defined(ANDROID)
+#if defined(AARCH64)
+void cacheflush(uintptr_t begin, uintptr_t end, int flag ){
+  __builtin___clear_cache((void*)begin,(void*)end);
+}
+#else
 void cacheflush(uintptr_t begin, uintptr_t end, int flag )
 { 
     const int syscall = 0xf0002;
@@ -71,6 +76,7 @@ void cacheflush(uintptr_t begin, uintptr_t end, int flag )
      : "r0", "r1", "r7"
     );
 }
+#endif
 //#endif
 //#endif
 #endif

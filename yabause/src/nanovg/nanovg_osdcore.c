@@ -87,6 +87,7 @@ static FrameProfileInfo frameinfo_histroy[MAX_HISTORY];
 static int current_history_index = 0;
 static int profile_index = 0;
 
+NVGcontext * getGlobalNanoVGContext();
 
 int OSDNanovgInit(void)
 {
