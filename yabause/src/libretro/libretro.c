@@ -49,7 +49,11 @@ static int game_interlace;
 static int current_width;
 static int current_height;
 
+static bool renderer_running = false;
 static bool hle_bios_force = false;
+
+static int g_frame_skip = 1;
+static int g_videoformattype = VIDEOFORMATTYPE_NTSC;
 static int addon_cart_type = CART_DRAM32MBIT;
 static int resolution_mode = 1;
 static int initial_resolution_mode = 0;
@@ -74,17 +78,25 @@ static retro_input_state_t input_state_cb;
 static retro_environment_t environ_cb;
 static retro_audio_sample_batch_t audio_batch_cb;
 
+#if defined(_USEGLEW_)
+static struct retro_hw_render_callback hw_render;
+#else
 extern struct retro_hw_render_callback hw_render;
+#endif
 
 void retro_set_environment(retro_environment_t cb)
 {
    static const struct retro_variable vars[] = {
       { "yabasanshiro_force_hle_bios", "Force HLE BIOS (restart, deprecated, debug only); disabled|enabled" },
+      { "yabasanshiro_frameskip", "Auto-frameskip (prevent fast-forwarding); enabled|disabled" },
+      { "yabasanshiro_videoformattype", "Video format; NTSC|PAL" },
       { "yabasanshiro_addon_cart", "Addon Cartridge (restart); 4M_extended_ram|1M_extended_ram" },
       { "yabasanshiro_multitap_port1", "6Player Adaptor on Port 1; disabled|enabled" },
       { "yabasanshiro_multitap_port2", "6Player Adaptor on Port 2; disabled|enabled" },
-#ifndef LOW_END
+#ifdef ALLOW_POLYGON_MODE
       { "yabasanshiro_polygon_mode", "Polygon Mode; perspective_correction|gpu_tesselation|cpu_tesselation" },
+#endif
+#ifndef LOW_END
       { "yabasanshiro_resolution_mode", "Resolution Mode; original|2x|4x" },
 #else
       { "yabasanshiro_resolution_mode", "Resolution Mode; original|2x" },
@@ -419,7 +431,9 @@ M68K_struct *M68KCoreList[] = {
 SH2Interface_struct *SH2CoreList[] = {
     &SH2Interpreter,
     &SH2DebugInterpreter,
+#ifdef DYNAREC_DEVMIYAX
     &SH2Dyn,
+#endif
     NULL
 };
 
@@ -470,12 +484,16 @@ static int first_ctx_reset = 1;
 
 int YuiUseOGLOnThisThread()
 {
-  return glsm_ctl(GLSM_CTL_STATE_BIND, NULL);;
+#if !defined(_USEGLEW_)
+  return glsm_ctl(GLSM_CTL_STATE_BIND, NULL);
+#endif
 }
 
 int YuiRevokeOGLOnThisThread()
 {
+#if !defined(_USEGLEW_)
   return glsm_ctl(GLSM_CTL_STATE_UNBIND, NULL);
+#endif
 }
 
 int YuiGetFB(void)
@@ -490,17 +508,6 @@ void retro_reinit_av_info(void)
     environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &av_info);
 }
 
-void YuiSwapBuffers(void)
-{
-   int prev_game_width = game_width;
-   int prev_game_height = game_height;
-   VIDCore->GetNativeResolution(&game_width, &game_height, &game_interlace);
-   if ((prev_game_width != game_width) || (prev_game_height != game_height))
-      retro_set_resolution();
-   audio_size = soundlen;
-   video_cb(RETRO_HW_FRAME_BUFFER_VALID, current_width, current_height, 0);
-}
-
 void retro_set_resolution()
 {
    // If resolution_mode > initial_resolution_mode, we'll need a restart to reallocate the max size for buffer
@@ -510,9 +517,9 @@ void retro_set_resolution()
       resolution_mode = initial_resolution_mode;
    }
    // Downscale resolution_mode for Hi-Res games
-   if (game_height > 256 && resolution_mode > max_resolution_mode)
+   if (game_height > 256 && resolution_mode > max_resolution_mode/2)
    {
-      log_cb(RETRO_LOG_INFO, "Hi-Res games limited to x8\n", resolution_mode);
+      log_cb(RETRO_LOG_INFO, "Halving Hi-Res games resolution mode\n", resolution_mode);
       resolution_mode = max_resolution_mode/2;
    }
    switch(resolution_mode)
@@ -534,32 +541,68 @@ void retro_set_resolution()
    VIDCore->SetSettingValue(VDP_SETTING_RESOLUTION_MODE, g_resolution_mode);
 }
 
+void YuiSwapBuffers(void)
+{
+   int prev_game_width = game_width;
+   int prev_game_height = game_height;
+   VIDCore->GetNativeResolution(&game_width, &game_height, &game_interlace);
+   if ((prev_game_width != game_width) || (prev_game_height != game_height))
+      retro_set_resolution();
+   audio_size = soundlen;
+   video_cb(RETRO_HW_FRAME_BUFFER_VALID, current_width, current_height, 0);
+}
+
 static void context_reset(void)
 {
+#if !defined(_USEGLEW_)
    glsm_ctl(GLSM_CTL_STATE_CONTEXT_RESET, NULL);
    glsm_ctl(GLSM_CTL_STATE_SETUP, NULL);
+#endif
    if (first_ctx_reset == 1)
    {
       first_ctx_reset = 0;
       YabauseInit(&yinit);
+      renderer_running = true;
       retro_set_resolution();
+      //YabThreadSetCurrentThreadAffinityMask(0x00);
       OSDChangeCore(OSDCORE_DUMMY);
    }
    else
    {
-      //VIDCore->Init();
+      if (!renderer_running)
+         VIDCore->Init();
+      renderer_running = true;
       retro_set_resolution();
    }
 }
 
 static void context_destroy(void)
 {
-   //VIDCore->DeInit();
+   if (renderer_running)
+      VIDCore->DeInit();
+   renderer_running = false;
+#if !defined(_USEGLEW_)
    glsm_ctl(GLSM_CTL_STATE_CONTEXT_DESTROY, NULL);
+#endif
 }
 
 static bool retro_init_hw_context(void)
 {
+#if defined(_USEGLEW_)
+   hw_render.context_reset = context_reset;
+   hw_render.context_destroy = context_destroy;
+   hw_render.depth = true;
+   hw_render.bottom_left_origin = true;
+#ifdef HAVE_GLES
+   hw_render.context_type = RETRO_HW_CONTEXT_OPENGLES3;
+   if (!environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER, &hw_render))
+      return false;
+#else
+   hw_render.context_type = RETRO_HW_CONTEXT_OPENGL;
+   if (!environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER, &hw_render))
+       return false;
+#endif
+#else
    glsm_ctx_params_t params = {0};
    params.context_reset = context_reset;
    params.context_destroy = context_destroy;
@@ -575,6 +618,7 @@ static bool retro_init_hw_context(void)
    params.context_type = RETRO_HW_CONTEXT_OPENGL;
    if (!glsm_ctl(GLSM_CTL_STATE_CONTEXT_INIT, &params))
       return false;
+#endif
 #endif
    return true;
 }
@@ -610,6 +654,26 @@ void check_variables(void)
          hle_bios_force = false;
       else if (strcmp(var.value, "enabled") == 0 && !hle_bios_force)
          hle_bios_force = true;
+   }
+
+   var.key = "yabasanshiro_frameskip";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (strcmp(var.value, "enabled") == 0)
+         g_frame_skip = 1;
+      else if (strcmp(var.value, "disabled") == 0)
+         g_frame_skip = 0;
+   }
+
+   var.key = "yabasanshiro_videoformattype";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (strcmp(var.value, "NTSC") == 0)
+         g_videoformattype = VIDEOFORMATTYPE_NTSC;
+      else if (strcmp(var.value, "PAL") == 0)
+         g_videoformattype = VIDEOFORMATTYPE_PAL;
    }
 
    var.key = "yabasanshiro_addon_cart";
@@ -667,7 +731,7 @@ void check_variables(void)
 #endif
    }
 
-#ifndef LOW_END
+#ifdef ALLOW_POLYGON_MODE
    var.key = "yabasanshiro_polygon_mode";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -834,17 +898,19 @@ bool retro_load_game_common()
 
    yinit.vidcoretype               = VIDCORE_OGL;
    yinit.percoretype               = PERCORE_LIBRETRO;
+#ifdef DYNAREC_DEVMIYAX
    yinit.sh2coretype               = 3;
+#else
+   yinit.sh2coretype               = SH2CORE_INTERPRETER;
+#endif
    yinit.sndcoretype               = SNDCORE_LIBRETRO;
 #ifdef HAVE_MUSASHI
    yinit.m68kcoretype              = M68KCORE_MUSASHI;
 #else
    yinit.m68kcoretype              = M68KCORE_C68K;
 #endif
-   yinit.regionid                  = REGION_AUTODETECT;
    yinit.mpegpath                  = NULL;
-   // There was some misunderstanding about frameskip, disabling frameskip is actually just enabling a limiter, which is bad in the libretro ecosystem
-   yinit.frameskip                 = 1;
+   yinit.frameskip                 = g_frame_skip;
    yinit.usethreads                = 0;
    yinit.rotate_screen             = 0;
    yinit.skip_load                 = 0;
@@ -855,6 +921,8 @@ bool retro_load_game_common()
    yinit.scsp_sync_count_per_frame = 1;
    yinit.extend_backup             = 1;
    yinit.scsp_main_mode            = 1;
+   yinit.videoformattype           = g_videoformattype;
+   yinit.video_filter_type         = 0;
 
    return true;
 }
@@ -1136,6 +1204,8 @@ bool retro_load_game_special(unsigned game_type, const struct retro_game_info *i
 
 void retro_unload_game(void)
 {
+   if (!renderer_running)
+      VIDCore->Init();
    YabauseDeInit();
 }
 
@@ -1165,15 +1235,33 @@ void retro_deinit(void)
 
 void retro_reset(void)
 {
-   YabauseResetNoLoad();
+   YabauseReset();
+   VdpResume();
    // The following function crashes the core when you use "restart"
    //YabauseResetButton();
+}
+
+void reset_global_gl_state()
+{
+   glUseProgram(0);
+   glGetError();
+   glBindBuffer(GL_ARRAY_BUFFER, 0);
+   glBindBuffer(GL_PIXEL_UNPACK_BUFFER,0);
+   glDisableVertexAttribArray(0);
+   glDisableVertexAttribArray(1);
+   glDisableVertexAttribArray(2);
+   glDisable(GL_DEPTH_TEST);
+   glDisable(GL_SCISSOR_TEST);
+   glDisable(GL_STENCIL_TEST);
+   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);   
 }
 
 void retro_run(void)
 {
    unsigned i;
    bool updated  = false;
+
+   //YabThreadSetCurrentThreadAffinityMask(0x00);
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
    {
@@ -1182,11 +1270,18 @@ void retro_run(void)
       if(prev_resolution_mode != resolution_mode)
          retro_set_resolution();
       VIDCore->SetSettingValue(VDP_SETTING_POLYGON_MODE, polygon_mode);
+      YabauseSetVideoFormat(g_videoformattype);
+      if(g_frame_skip == 1)
+         EnableAutoFrameSkip();
+      else
+         DisableAutoFrameSkip();
    }
 
    //YabauseExec(); runs from handle events
    if(PERCore)
       PERCore->HandleEvents();
+
+   reset_global_gl_state();
 }
 
 #ifdef ANDROID

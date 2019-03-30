@@ -250,8 +250,9 @@ void YabThreadFreeMutex( YabMutex * mtx ){
     }
 }
 
-
-
+// The following definitions are useful for macosx (gl3 on macosx isn't supported by RA, so we don't really care)
+// and old android ndk (libretro buildbot already got those definitions, so it might be better to use them)
+#if !defined(__LIBRETRO__)
 #if !(defined ARCH_IS_LINUX) || (defined ANDROID)
  
 extern int clone(int (*)(void*), void*, int, void*, ...);
@@ -346,6 +347,7 @@ extern void       __sched_cpufree(cpu_set_t* set);
 
 extern int __sched_cpucount(size_t setsize, cpu_set_t* set);
 
+#endif
 #endif
 
 void YabThreadSetCurrentThreadAffinityMask(int mask)
