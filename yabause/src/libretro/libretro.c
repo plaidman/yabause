@@ -770,16 +770,12 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 
 void retro_set_controller_port_device(unsigned port, unsigned device)
 {
-   switch(device)
+   if(pad_type[port] != device)
    {
-      case RETRO_DEVICE_JOYPAD:
-      case RETRO_DEVICE_ANALOG:
-         pad_type[port] = device;
-         break;
+      pad_type[port] = device;
+      if(PERCore)
+         PERCore->Init();
    }
-
-   if(PERCore)
-      PERCore->Init();
 }
 
 size_t retro_serialize_size(void)
@@ -879,9 +875,6 @@ void retro_init(void)
    char save_dir[PATH_MAX];
    snprintf(save_dir, sizeof(save_dir), "%s%cyabasanshiro%c", g_save_dir, slash, slash);
    path_mkdir(save_dir);
-
-   if(PERCore)
-      PERCore->Init();
 
    environ_cb(RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL, &level);
 
@@ -1266,9 +1259,12 @@ void retro_run(void)
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
    {
       int prev_resolution_mode = resolution_mode;
+      int prev_multitap[2] = {multitap[0],multitap[1]};
       check_variables();
       if(prev_resolution_mode != resolution_mode)
          retro_set_resolution();
+      if(PERCore && (prev_multitap[0] != multitap[0] || prev_multitap[1] != multitap[1]))
+         PERCore->Init();
       VIDCore->SetSettingValue(VDP_SETTING_POLYGON_MODE, polygon_mode);
       YabauseSetVideoFormat(g_videoformattype);
       if(g_frame_skip == 1)
