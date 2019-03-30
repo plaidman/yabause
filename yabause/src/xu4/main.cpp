@@ -69,7 +69,7 @@ static char buppath[256] = "./back.bin";
 static char mpegpath[256] = "\0";
 static char cartpath[256] = "\0";
 
-#define LOG
+#define LOG printf
 
 M68K_struct * M68KCoreList[] = {
   &M68KDummy,
@@ -199,7 +199,7 @@ int yabauseinit()
 #else
   //yinit.sh2coretype = 0;
 #endif
-  yinit.sh2coretype = 0;
+  yinit.sh2coretype = 3;
   //yinit.vidcoretype = VIDCORE_SOFT;
   yinit.vidcoretype = 1;
   yinit.sndcoretype = SNDCORE_SDL;
@@ -222,7 +222,7 @@ int yabauseinit()
   yinit.usethreads = 0;
   yinit.skip_load = 0;    
   yinit.video_filter_type = 0;
-  yinit.polygon_generation_mode = PERSPECTIVE_CORRECTION; ////GPU_TESSERATION;
+  yinit.polygon_generation_mode = PERSPECTIVE_CORRECTION; /*GPU_TESSERATION;*/
   yinit.use_new_scsp = 1;
   yinit.resolution_mode = g_resolution_mode;
   yinit.rotate_screen = 0;
@@ -236,8 +236,8 @@ int yabauseinit()
   }
 
   padmode = inputmng->getCurrentPadMode( 0 );
-  //OSDInit(0);
-  //OSDChangeCore(OSDCORE_NANOVG);
+  OSDInit(0);
+  OSDChangeCore(OSDCORE_NANOVG);
   LogStart();
   LogChangeOutput(DEBUG_CALLBACK, NULL);
   return 0;
