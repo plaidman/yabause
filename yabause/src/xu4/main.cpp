@@ -62,7 +62,7 @@ extern "C" {
 
 extern "C" {
 static char biospath[256] = "/home/pigaming/RetroPie/BIOS/saturn/bios.bin";
-static char cdpath[256] = "/home/pigaming/RetroPie/roms/saturn/nights.cue";
+static char cdpath[256] = ""; ///home/pigaming/RetroPie/roms/saturn/nights.cue";
 //static char cdpath[256] = "/home/pigaming/RetroPie/roms/saturn/gd.cue";
 //static char cdpath[256] = "/home/pigaming/RetroPie/roms/saturn/Virtua Fighter Kids (1996)(Sega)(JP).ccd";
 static char buppath[256] = "./back.bin";
@@ -199,7 +199,7 @@ int yabauseinit()
 #else
   //yinit.sh2coretype = 0;
 #endif
-  yinit.sh2coretype = 3;
+  yinit.sh2coretype = 0;
   //yinit.vidcoretype = VIDCORE_SOFT;
   yinit.vidcoretype = 1;
   yinit.sndcoretype = SNDCORE_SDL;
@@ -236,8 +236,8 @@ int yabauseinit()
   }
 
   padmode = inputmng->getCurrentPadMode( 0 );
-  OSDInit(0);
-  OSDChangeCore(OSDCORE_NANOVG);
+  //OSDInit(0);
+  //OSDChangeCore(OSDCORE_NANOVG);
   LogStart();
   LogChangeOutput(DEBUG_CALLBACK, NULL);
   return 0;

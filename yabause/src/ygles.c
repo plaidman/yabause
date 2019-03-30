@@ -3419,7 +3419,7 @@ render_finish:
   glDisable(GL_SCISSOR_TEST);
   glDisable(GL_STENCIL_TEST);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  OSDDisplayMessages(NULL,0,0);
+  //OSDDisplayMessages(NULL,0,0);
   YuiSwapBuffers();
   FrameProfileAdd("YglRender end");
   return;
