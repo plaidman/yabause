@@ -51,6 +51,7 @@ static int current_height;
 
 static bool renderer_running = false;
 static bool hle_bios_force = false;
+static bool one_frame_rendered = false;
 
 static int g_frame_skip = 1;
 static int g_videoformattype = VIDEOFORMATTYPE_NTSC;
@@ -550,6 +551,7 @@ void YuiSwapBuffers(void)
       retro_set_resolution();
    audio_size = soundlen;
    video_cb(RETRO_HW_FRAME_BUFFER_VALID, current_width, current_height, 0);
+   one_frame_rendered = true;
 }
 
 static void context_reset(void)
@@ -1253,6 +1255,7 @@ void retro_run(void)
 {
    unsigned i;
    bool updated  = false;
+   one_frame_rendered = false;
 
    //YabThreadSetCurrentThreadAffinityMask(0x00);
 
@@ -1276,6 +1279,10 @@ void retro_run(void)
    //YabauseExec(); runs from handle events
    if(PERCore)
       PERCore->HandleEvents();
+
+   // If no frame rendered, dupe
+   if(!one_frame_rendered)
+      video_cb(NULL, current_width, current_height, 0);
 
    reset_global_gl_state();
 }
