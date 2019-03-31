@@ -437,7 +437,11 @@ void VdpProc( void *arg ){
   }
 
   while( vdp_proc_running ){
-    YabThreadSetCurrentThreadAffinityMask(0x01);
+#if defined(__RP64__)	  
+    YabThreadSetCurrentThreadAffinityMask(0x5);
+#else
+    YabThreadSetCurrentThreadAffinityMask(0x1);
+#endif
     evcode = YabWaitEventQueue(evqueue);
     switch(evcode){
     case VDPEV_VBLANK_IN:
