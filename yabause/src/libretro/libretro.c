@@ -53,6 +53,11 @@ static bool renderer_running = false;
 static bool hle_bios_force = false;
 static bool one_frame_rendered = false;
 
+#ifdef DYNAREC_DEVMIYAX
+static int g_sh2coretype = 3;
+#else
+static int g_sh2coretype = SH2CORE_INTERPRETER;
+#endif
 static int g_frame_skip = 1;
 static int g_videoformattype = VIDEOFORMATTYPE_NTSC;
 static int addon_cart_type = CART_DRAM32MBIT;
@@ -94,6 +99,9 @@ void retro_set_environment(retro_environment_t cb)
       { "yabasanshiro_addon_cart", "Addon Cartridge (restart); 4M_extended_ram|1M_extended_ram" },
       { "yabasanshiro_multitap_port1", "6Player Adaptor on Port 1; disabled|enabled" },
       { "yabasanshiro_multitap_port2", "6Player Adaptor on Port 2; disabled|enabled" },
+#ifdef DYNAREC_DEVMIYAX
+      { "yabasanshiro_sh2coretype", "SH2 Core (restart); dynarec|interpreter" },
+#endif
 #ifdef ALLOW_POLYGON_MODE
       { "yabasanshiro_polygon_mode", "Polygon Mode; perspective_correction|gpu_tesselation|cpu_tesselation" },
 #endif
@@ -677,6 +685,18 @@ void check_variables(void)
          g_videoformattype = VIDEOFORMATTYPE_PAL;
    }
 
+#ifdef DYNAREC_DEVMIYAX
+   var.key = "yabasanshiro_sh2coretype";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (strcmp(var.value, "dynarec") == 0)
+         g_sh2coretype = 3;
+      else if (strcmp(var.value, "interpreter") == 0)
+         g_sh2coretype = SH2CORE_INTERPRETER;
+   }
+#endif
+
    var.key = "yabasanshiro_addon_cart";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -892,11 +912,7 @@ bool retro_load_game_common()
 
    yinit.vidcoretype               = VIDCORE_OGL;
    yinit.percoretype               = PERCORE_LIBRETRO;
-#ifdef DYNAREC_DEVMIYAX
-   yinit.sh2coretype               = 3;
-#else
-   yinit.sh2coretype               = SH2CORE_INTERPRETER;
-#endif
+   yinit.sh2coretype               = g_sh2coretype;
    yinit.sndcoretype               = SNDCORE_LIBRETRO;
 #ifdef HAVE_MUSASHI
    yinit.m68kcoretype              = M68KCORE_MUSASHI;
