@@ -1,6 +1,7 @@
 DEBUG = 0
 DEBUG_ASAN = 0
 DEBUG_UBSAN = 0
+DEBUG_TSAN = 0
 HAVE_SSE = 1
 __USE_OPENGL_DEBUG__ = 0
 HAVE_MUSASHI = 1
@@ -13,6 +14,7 @@ DYNAREC_DEVMIYAX = 0
 USE_ARM_DRC = 0
 USE_AARCH64_DRC = 0
 USE_X86_DRC = 0
+USE_RTHREADS = 0
 ARCH_IS_LINUX = 0
 ARCH_IS_MACOSX = 0
 FORCE_GLEW = 0
@@ -262,8 +264,14 @@ ifeq ($(DEBUG_UBSAN), 1)
 	LDFLAGS += -lubsan -fsanitize=undefined
 endif
 
+ifeq ($(DEBUG_TSAN), 1)
+	DEBUG = 1
+	FLAGS += -ltsan -fsanitize=thread
+	LDFLAGS += -ltsan -fsanitize=thread
+endif
+
 ifeq ($(DEBUG), 1)
-	FLAGS += -O0 -g
+	FLAGS += -O1 -g
 else
 	FLAGS += -O3 -DNDEBUG
 endif
