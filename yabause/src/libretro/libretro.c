@@ -566,7 +566,6 @@ static void context_reset(void)
       YabauseInit(&yinit);
       renderer_running = true;
       retro_set_resolution();
-      //YabThreadSetCurrentThreadAffinityMask(0x00);
       OSDChangeCore(OSDCORE_DUMMY);
    }
    else
@@ -1257,7 +1256,7 @@ void retro_run(void)
    bool updated  = false;
    one_frame_rendered = false;
 
-   //YabThreadSetCurrentThreadAffinityMask(0x00);
+   YabThreadSetCurrentThreadAffinityMask(0x00);
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
    {

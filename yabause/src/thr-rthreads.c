@@ -18,6 +18,11 @@
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#ifndef _WIN32
+#include <sched.h>
+#include <unistd.h>
+#endif
+
 #include "core.h"
 #include "threads.h"
 #include "rthreads/rthreads.h"
@@ -49,10 +54,27 @@ typedef struct YabMutex_rthreads
 
 static struct thd_s thread_handle[YAB_NUM_THREADS];
 
+#ifdef _WIN32
+#ifdef HAVE_THREAD_STORAGE
+static sthread_tls_t hnd_key;
+static int hnd_key_once = 0;
+#endif
+#endif
+
 //////////////////////////////////////////////////////////////////////////////
 
 int YabThreadStart(unsigned int id, void (*func)(void *), void *arg)
 {
+#ifdef _WIN32
+#ifdef HAVE_THREAD_STORAGE
+	if (hnd_key_once == 0)
+	{
+		if(sthread_tls_create(&hnd_key));
+			hnd_key_once = 1;
+	}
+#endif
+#endif
+
 	if ((thread_handle[id].thd = sthread_create((void *)func, arg)) == NULL)
 	{
 		perror("CreateThread");
@@ -84,11 +106,36 @@ void YabThreadWait(unsigned int id)
 	thread_handle[id].running = 0;
 }
 
-void YabThreadYield(void) {}
+void YabThreadYield(void)
+{
+#ifdef _WIN32
+	SleepEx(0, 0);
+#else
+	sched_yield();
+#endif
+}
 
-void YabThreadSleep(void) {}
+void YabThreadSleep(void)
+{
+#ifdef _WIN32
+#ifdef HAVE_THREAD_STORAGE
+	struct thd_s *thd = (struct thd_s *)sthread_tls_get(hnd_key);
+	WaitForSingleObject(thd->cond,INFINITE);
+#endif
+#else
+	pause();
+#endif
+}
 
-void YabThreadRemoteSleep(unsigned int id) {}
+void YabThreadRemoteSleep(unsigned int id)
+{
+#ifdef _WIN32
+	if (!thread_handle[id].thd)
+		return;
+
+	WaitForSingleObject(thread_handle[id].cond,INFINITE);
+#endif
+}
 
 void YabThreadWake(unsigned int id)
 {
@@ -112,9 +159,21 @@ void YabAddEventQueue( YabEventQueue * queue_t, int evcode )
 	scond_broadcast(queue->cond_empty);
 }
 
-void YabThreadUSleep( unsigned int stime ) {}
+void YabThreadUSleep( unsigned int stime )
+{
+#ifdef _WIN32
+	SleepEx(stime/1000, 0);
+#else
+	usleep(stime);
+#endif
+}
 
-void YabThreadSetCurrentThreadAffinityMask(int mask) {}
+void YabThreadSetCurrentThreadAffinityMask(int mask)
+{
+#ifdef _WIN32
+	SetThreadIdealProcessor(GetCurrentThread(), mask);
+#endif
+}
 
 int YabWaitEventQueue( YabEventQueue * queue_t )
 {
