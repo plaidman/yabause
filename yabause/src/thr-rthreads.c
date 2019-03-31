@@ -80,6 +80,7 @@ void YabThreadWait(unsigned int id)
 		return;  // Thread wasn't running in the first place
 
 	sthread_join(thread_handle[id].thd);
+	thread_handle[id].thd = NULL;
 	thread_handle[id].running = 0;
 }
 
