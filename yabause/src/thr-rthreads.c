@@ -21,6 +21,8 @@
 #ifndef _WIN32
 #include <sched.h>
 #include <unistd.h>
+#include <sys/syscall.h>
+#include <errno.h>
 #endif
 
 #include "core.h"
@@ -29,10 +31,10 @@
 #include <stdlib.h>
 
 struct thd_s {
-   int running;
-   sthread_t *thd;
-   slock_t *mutex;
-   scond_t *cond;
+	int running;
+	sthread_t *thd;
+	slock_t *mutex;
+	scond_t *cond;
 };
 
 typedef struct YabEventQueue_rthreads
@@ -93,7 +95,7 @@ int YabThreadStart(unsigned int id, void (*func)(void *), void *arg)
 
 	thread_handle[id].running = 1;
 
-	return 0; 
+	return 0;
 }
 
 void YabThreadWait(unsigned int id)
@@ -170,8 +172,18 @@ void YabThreadUSleep( unsigned int stime )
 
 void YabThreadSetCurrentThreadAffinityMask(int mask)
 {
-#ifdef _WIN32
+#if defined(_WIN32)
 	SetThreadIdealProcessor(GetCurrentThread(), mask);
+#elif !defined(ANDROID) // it needs more than android-21
+	int err, syscallres;
+	pid_t pid = syscall(SYS_gettid);
+	mask = 1 << mask;
+	syscallres = syscall(__NR_sched_setaffinity, pid, sizeof(mask), &mask);
+	if (syscallres)
+	{
+		err = errno;
+		//LOG("Error in the syscall setaffinity: mask=%d=0x%x err=%d=0x%x", mask, mask, err, err);
+	}
 #endif
 }
 
@@ -223,7 +235,7 @@ void YabThreadFreeMutex( YabMutex * mtx )
 {
 	if( mtx != NULL ){
 		YabMutex_rthreads * pmtx;
-		pmtx = (YabMutex_rthreads *)mtx;        
+		pmtx = (YabMutex_rthreads *)mtx;
 		slock_free(pmtx->mutex);
 		free(pmtx);
 	}
