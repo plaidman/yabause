@@ -6,7 +6,20 @@
 #if defined(_WIN32)
 #pragma warning(disable : 4996) // The POSIX name for this item is deprecated.
 #endif
-char *strdup(const char *s);
+// non standard function
+#include <malloc.h>
+char* strdup_ (const char* s)
+{
+  size_t slen = strlen(s);
+  char* result = (char*)malloc(slen + 1);
+  if(result == NULL)
+  {
+    return NULL;
+  }
+  memcpy(result, s, slen+1);
+  return result;
+}
+#define strdup strdup_
 
 int main(int argc, char **argv) {
 	FILE *f_c, *f_h, *f_i;

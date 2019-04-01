@@ -381,8 +381,11 @@ int main(int argc, char** argv)
     VIDCore->Resize(0,0,width,height,0);
   }
   SDL_GL_MakeCurrent(wnd,nullptr);
-  YabThreadSetCurrentThreadAffinityMask(0x00);
-
+#if defined(__RP64__)
+  YabThreadSetCurrentThreadAffinityMask(0x4);
+#else
+  YabThreadSetCurrentThreadAffinityMask(0x0);
+#endif
   Uint32 evToggleMenu = SDL_RegisterEvents(1);
   inputmng->setToggleMenuEventCode(evToggleMenu);
 

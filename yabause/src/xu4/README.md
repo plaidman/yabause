@@ -12,6 +12,12 @@ $ cmake ../yabause -DYAB_PORTS=xu4 -DYAB_WANT_DYNAREC_DEVMIYAX=ON -DYAB_WANT_ARM
 $ make
 ```
 
+# for RockPro64
+
+```
+$ make ../yabause -DYAB_PORTS=xu4 -DYAB_WANT_DYNAREC_DEVMIYAX=ON -DYAB_WANT_ARM7=ON -DCMAKE_TOOLCHAIN_FILE=../yabause/src/xu4/rp64.cmake
+```
+
 ## Commandline Usage:
 
 |           |                               |                                              |
