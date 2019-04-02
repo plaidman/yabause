@@ -53,7 +53,7 @@ endif
 CORE_DIR := .
 
 TARGET_NAME = yabasanshiro
-CC_AS ?= $(AS)
+CC_AS ?= $(CC)
 GIT_VERSION := " $(shell git rev-parse --short HEAD || echo unknown)"
 ifneq ($(GIT_VERSION)," unknown")
 	CFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
@@ -335,8 +335,8 @@ FLAGS += $(INCFLAGS) -D__LIBRETRO__ $(ENDIANNESS_DEFINES) $(WARNINGS) \
 	-DHAVE_FLOORF=1 -DHAVE_GETTIMEOFDAY=1 -DHAVE_STDINT_H=1 -DHAVE_SYS_TIME_H=1 -DIMPROVED_SAVESTATES \
 	-DHAVE_LIBGL -DVERSION=\"2.3.1\" -D_OGLES3_
 
-CXXFLAGS += $(FLAGS) -std=gnu++11 -funroll-loops
-CFLAGS += $(FLAGS) -std=gnu99 -funroll-loops
+CXXFLAGS += $(FLAGS) -std=gnu++11
+CFLAGS += $(FLAGS) -std=gnu99
 
 all: $(TARGET)
 
@@ -364,10 +364,10 @@ else
 endif
 
 %.S.o: %.S
-	$(CC_AS) -o $@ $^
+	$(CC_AS) $(CFLAGS) -c $^ -o $@
 
 %.s.o: %.s
-	$(CC_AS) -o $@ $^
+	$(CC_AS) $(CFLAGS) -c $^ -o $@
 
 %.cpp.o: %.cpp
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
