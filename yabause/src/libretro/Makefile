@@ -53,7 +53,7 @@ endif
 CORE_DIR := .
 
 TARGET_NAME = yabasanshiro
-CC_AS ?= $(CC)
+CC_AS ?= $(AS)
 GIT_VERSION := " $(shell git rev-parse --short HEAD || echo unknown)"
 ifneq ($(GIT_VERSION)," unknown")
 	CFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
@@ -271,9 +271,9 @@ ifeq ($(DEBUG_TSAN), 1)
 endif
 
 ifeq ($(DEBUG), 1)
-	FLAGS += -O1 -g
+	FLAGS += -O0 -g
 else
-	FLAGS += -O3 -DNDEBUG
+	FLAGS += -O3 -fomit-frame-pointer -DNDEBUG
 endif
 
 ifeq ($(HAVE_MUSASHI), 1)
@@ -335,11 +335,8 @@ FLAGS += $(INCFLAGS) -D__LIBRETRO__ $(ENDIANNESS_DEFINES) $(WARNINGS) \
 	-DHAVE_FLOORF=1 -DHAVE_GETTIMEOFDAY=1 -DHAVE_STDINT_H=1 -DHAVE_SYS_TIME_H=1 -DIMPROVED_SAVESTATES \
 	-DHAVE_LIBGL -DVERSION=\"2.3.1\" -D_OGLES3_
 
-CXXFLAGS += $(FLAGS)
-CXXFLAGS += -std=gnu++11 -funroll-loops -fomit-frame-pointer
-
-CFLAGS += $(FLAGS)
-CFLAGS += -std=gnu99 -funroll-loops -fomit-frame-pointer
+CXXFLAGS += $(FLAGS) -std=gnu++11 -funroll-loops
+CFLAGS += $(FLAGS) -std=gnu99 -funroll-loops
 
 all: $(TARGET)
 
@@ -367,10 +364,10 @@ else
 endif
 
 %.S.o: %.S
-	$(CC_AS) $(CFLAGS) -c $^ -o $@
+	$(CC_AS) -o $@ $^
 
 %.s.o: %.s
-	$(CC_AS) $(CFLAGS) -c $^ -o $@
+	$(CC_AS) -o $@ $^
 
 %.cpp.o: %.cpp
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
