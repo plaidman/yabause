@@ -90,6 +90,22 @@ ifneq (,$(findstring unix,$(platform)))
 		FLAGS += -DARM
 	endif
 
+# RockPro64
+else ifneq (,$(findstring rockpro64,$(platform)))
+	override platform += unix
+	TARGET := $(TARGET_NAME)_libretro.so
+	fpic := -fPIC
+	SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
+	LDFLAGS += -lpthread -lGL
+	ARCH_IS_LINUX = 1
+	HAVE_SSE = 0
+	HAVE_GLES = 1
+	USE_ARM_DRC = 1
+	DYNAREC_DEVMIYAX = 1
+	LOW_END = 1
+	ALLOW_POLYGON_MODE = 0
+	FLAGS += -march=armv8-a+crc -mcpu=cortex-a72 -mtune=cortex-a72.cortex-a53 -mfloat-abi=hard -mfpu=neon-vfpv4 -mvectorize-with-neon-quad
+
 # ODROIDs
 else ifeq ($(platform), odroid-n2)
 	override platform += unix
@@ -105,7 +121,6 @@ else ifeq ($(platform), odroid-n2)
 	DYNAREC_DEVMIYAX = 1
 	ALLOW_POLYGON_MODE = 0
 	# ODROID-N2
-	# clang-7 run at almost full speed, gcc is crashing
 	ifneq (, $(findstring clang,$(CC)))
 		FLAGS += -march=armv8-a+crc
 	else
