@@ -161,6 +161,19 @@ void YabAddEventQueue( YabEventQueue * queue_t, int evcode )
 	scond_broadcast(queue->cond_empty);
 }
 
+int YabClearEventQueue(YabEventQueue * queue_t)
+{
+	YabEventQueue_rthreads * queue = (YabEventQueue_rthreads*)queue_t;
+	slock_lock(queue->mutex);
+	while (queue->size > 0)
+	{
+		--queue->size;
+		++queue->out;
+		queue->out %= queue->capacity;
+	}
+	slock_unlock(queue->mutex);
+}
+
 void YabThreadUSleep( unsigned int stime )
 {
 #ifdef _WIN32
@@ -203,6 +216,16 @@ int YabWaitEventQueue( YabEventQueue * queue_t )
 	return value;
 }
 
+int YaGetQueueSize(YabEventQueue * queue_t)
+{
+	int size = 0;
+	YabEventQueue_rthreads * queue = (YabEventQueue_rthreads*)queue_t;
+	slock_lock(queue->mutex);
+	size = queue->size;
+	slock_unlock(queue->mutex);
+	return size;
+}
+
 YabEventQueue * YabThreadCreateQueue( int qsize )
 {
 	YabEventQueue_rthreads * p = (YabEventQueue_rthreads*)malloc(sizeof(YabEventQueue_rthreads));
@@ -215,6 +238,19 @@ YabEventQueue * YabThreadCreateQueue( int qsize )
 	p->cond_full = scond_new();
 	p->cond_empty = scond_new();
 	return (YabEventQueue *)p;
+}
+
+void YabThreadDestoryQueue( YabEventQueue * queue_t )
+{
+	slock_t *mutex;
+	YabEventQueue_rthreads * queue = (YabEventQueue_rthreads*)queue_t;
+	mutex = queue->mutex;
+	slock_lock(mutex);
+	while (queue->size == queue->capacity)
+		scond_wait(queue->cond_full, queue->mutex);
+	free(queue->buffer);
+	free(queue);
+	slock_unlock(mutex);
 }
 
 void YabThreadLock( YabMutex * mtx )
