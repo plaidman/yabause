@@ -67,7 +67,7 @@
         <CheckBoxPreference
             android:key="pref_frameskip"
             android:title="@string/frameskip"
-            android:defaultValue="false" />
+            android:defaultValue="true" />
         
         <CheckBoxPreference
             android:key="pref_keepaspectrate"
@@ -107,6 +107,19 @@
             android:entries="@array/entries_video_resolution_list_preference"
             android:entryValues="@array/entryvalues_video_resolution_list_preference"
             android:defaultValue="0" />
+
+        <ListPreference
+            android:key="pref_rbg_resolution"
+            android:title="@string/rbg_resolution"
+            android:dialogTitle="@string/choose_rbg_resolution"
+            android:entries="@array/entries_rbg_resolution_list_preference"
+            android:entryValues="@array/entryvalues_rbg_resolution_list_preference"
+            android:defaultValue="0" />
+
+        <CheckBoxPreference
+            android:key="pref_use_compute_shader"
+            android:title="@string/str_use_compute_shader"
+            android:defaultValue="false" />
 
      </PreferenceCategory>        
     
@@ -159,6 +172,14 @@
             android:dialogTitle="@string/choose_sound_engine"
             android:entries="@array/entries_sound_engine_list_preference"
             android:entryValues="@array/entryvalues_sound_engine_list_preference"
+            android:defaultValue="1" />
+
+        <ListPreference
+            android:key="scsp_time_sync_mode"
+            android:title="@string/time_synchronization_mode"
+            android:dialogTitle="@string/choose_time_synchronization_mode"
+            android:entries="@array/entries_scsp_time_synchronization_mode"
+            android:entryValues="@array/entryvalues_scsp_time_synchronization_mode"
             android:defaultValue="1" />
 
         <EditTextPreference

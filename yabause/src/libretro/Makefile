@@ -1,7 +1,6 @@
 DEBUG = 0
 DEBUG_ASAN = 0
 DEBUG_UBSAN = 0
-DEBUG_TSAN = 0
 HAVE_SSE = 1
 __USE_OPENGL_DEBUG__ = 0
 HAVE_MUSASHI = 1
@@ -14,7 +13,6 @@ DYNAREC_DEVMIYAX = 0
 USE_ARM_DRC = 0
 USE_AARCH64_DRC = 0
 USE_X86_DRC = 0
-USE_RTHREADS = 0
 ARCH_IS_LINUX = 0
 ARCH_IS_MACOSX = 0
 FORCE_GLEW = 0
@@ -135,6 +133,7 @@ else ifeq ($(platform), odroid-n2)
 	DYNAREC_DEVMIYAX = 1
 	ALLOW_POLYGON_MODE = 0
 	# ODROID-N2
+	# clang-7 run at almost full speed, gcc is crashing
 	ifneq (, $(findstring clang,$(CC)))
 		FLAGS += -march=armv8-a+crc
 	else
@@ -293,16 +292,10 @@ ifeq ($(DEBUG_UBSAN), 1)
 	LDFLAGS += -lubsan -fsanitize=undefined
 endif
 
-ifeq ($(DEBUG_TSAN), 1)
-	DEBUG = 1
-	FLAGS += -ltsan -fsanitize=thread
-	LDFLAGS += -ltsan -fsanitize=thread
-endif
-
 ifeq ($(DEBUG), 1)
 	FLAGS += -O0 -g
 else
-	FLAGS += -O3 -fomit-frame-pointer -DNDEBUG
+	FLAGS += -O3 -DNDEBUG
 endif
 
 ifeq ($(HAVE_MUSASHI), 1)
@@ -359,13 +352,16 @@ FLAGS += $(fpic)
 INCFLAGS := $(foreach dir,$(INCLUDE_DIRS),-I$(dir))
 
 WARNINGS :=
-FLAGS += $(INCFLAGS) -D__LIBRETRO__ $(ENDIANNESS_DEFINES) $(WARNINGS) \
+FLAGS += $(INCFLAGS) -D__LIBRETRO__ $(ENDIANNESS_DEFINES) -DSIZEOF_DOUBLE=8 $(WARNINGS) -DUSE_16BPP=1 -DUSE_RGB_565=1 \
 	-DNO_CLI -DHAVE_BUILTIN_BSWAP16=1 -DHAVE_BUILTIN_BSWAP32=1 -DHAVE_C99_VARIADIC_MACROS=1 \
 	-DHAVE_FLOORF=1 -DHAVE_GETTIMEOFDAY=1 -DHAVE_STDINT_H=1 -DHAVE_SYS_TIME_H=1 -DIMPROVED_SAVESTATES \
 	-DHAVE_LIBGL -DVERSION=\"2.3.1\" -D_OGLES3_
 
-CXXFLAGS += $(FLAGS) -std=gnu++11
-CFLAGS += $(FLAGS) -std=gnu99
+CXXFLAGS += $(FLAGS)
+CXXFLAGS += -std=gnu++11 -funroll-loops -fomit-frame-pointer
+
+CFLAGS += $(FLAGS)
+CFLAGS += -std=gnu99 -funroll-loops -fomit-frame-pointer
 
 all: $(TARGET)
 

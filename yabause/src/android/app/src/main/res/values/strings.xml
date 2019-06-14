@@ -141,13 +141,15 @@
     <string name="invite">Introduce</string>
     <string name="invite_message">Would you like to introduce this app?</string>
     <string name="video_resolution">Rendering Resolution</string>
+    <string name="rbg_resolution">RBG Resolution</string>
     <string name="choose_video_resolution">Choose Rendering Resolution</string>
+    <string name="choose_rbg_resolution">Choose RBG(Rotate Background) Screen Resolution</string>
     <string name="open_cd_tray">Open CD Tray</string>
     <string name="close_cd_tray">Close CD Tray</string>
     <string name="menu_analog">Enable Analog Control</string>
     <string name="menu_cheat">Cheat</string>
     <string name="add_new_code">Add New Code</string>
-
+    <string name="str_use_compute_shader">Use Compute Shader</string>
     <string name="enable">Enable</string>
     <string name="disable">Disable</string>
     <string name="edit">Edit</string>
@@ -158,6 +160,8 @@
     <string name="sound_legacy">Legacy(for low-end devices)</string>
 
     <string name="res_native">Native(native resolution of this android device)</string>
+    <string name="res_1080p">1080p</string>
+    <string name="res_720p">720p</string>
     <string name="res_4x">4x</string>
     <string name="res_2x">2x</string>
     <string name="res_original">Original</string>
@@ -179,6 +183,11 @@
     <string name="sel_cpu_sync_per_line"></string>
     <string name="speed">Speed</string>
     <string name="accuracy">Accuracy</string>
+
+    <string name="time_synchronization_mode">Sound time synchronization mode</string>
+    <string name="choose_time_synchronization_mode">Sound time synchronization mode</string>
+    <string name="cpu_time">CPU time (Synchronize to emulated cpu time. If your device is fast enough, Sound emulation is very accurate.)</string>
+    <string name="real_time">Real time (Synchronize to real world time. Although your device is not so fast, Sound is not corrupted.)</string>
 
 </resources>
 	

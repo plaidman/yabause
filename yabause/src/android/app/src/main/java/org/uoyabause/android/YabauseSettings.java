@@ -279,6 +279,12 @@ public class YabauseSettings extends PreferenceActivity implements SharedPrefere
         ListPreference resolution_setting = (ListPreference) getPreferenceManager().findPreference("pref_resolution");
         resolution_setting.setSummary(resolution_setting.getEntry());
 
+        ListPreference rbg_resolution_setting = (ListPreference) getPreferenceManager().findPreference("pref_rbg_resolution");
+        rbg_resolution_setting.setSummary(rbg_resolution_setting.getEntry());
+
+        ListPreference scsp_time_sync_setting = (ListPreference) getPreferenceManager().findPreference("scsp_time_sync_mode");
+        scsp_time_sync_setting.setSummary(scsp_time_sync_setting.getEntry());
+
       }
 
     protected void onActivityResult(int requestCode, int resultCode, Intent imageReturnedIntent) {
@@ -400,17 +406,18 @@ public class YabauseSettings extends PreferenceActivity implements SharedPrefere
             }
         }
     }
-    
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-        if (key.equals("pref_bios") || 
-            key.equals("pref_cart") || 
+        if (key.equals("pref_bios") ||
+                key.equals("scsp_time_sync_mode") ||
+                key.equals("pref_cart") ||
             key.equals("pref_video") || 
             key.equals("pref_cpu") || 
             key.equals("pref_filter") || 
             key.equals("pref_polygon_generation") || 
             key.equals("pref_sound_engine" ) ||
             key.equals("pref_resolution")
+            key.equals("pref_rbg_resolution") ||
             ) {
                 ListPreference pref = (ListPreference) findPreference(key);
                 pref.setSummary(pref.getEntry());

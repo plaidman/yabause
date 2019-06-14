@@ -35,7 +35,6 @@ set(YAB_PORT_BUILT FALSE)
 set(YAB_PORTS "qt" CACHE STRING "List of ports to build")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fomit-frame-pointer")
-add_definitions(-DYAB_ASYNC_RENDERING)
 		
 set(yabause_SOURCES
 	bios.c
@@ -54,6 +53,8 @@ set(yabause_SOURCES
 	titan/titan.c
 	vdp1.c vdp2.c vdp2debug.c vidogl.c vidshared.c vidsoft.c
 	yabause.c
+	Counter.cpp
+	ygl_texture.cpp
 	sh2cache.c )
 	add_definitions(-DIMPROVED_SAVESTATES)
 if (ANDROID)
@@ -74,6 +75,22 @@ if (ANDROID)
 		)
 endif()
 
+if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Switch")
+add_definitions(-DYAB_PORT_OSD)
+add_definitions(-D_OGLES3_)
+#add_definitions(-DYAB_ASYNC_RENDERING)
+add_definitions(-DYAB_PORT_OSD)
+include_directories(./ ./nanovg)		
+set(yabause_SOURCES
+	${yabause_SOURCES}
+	yglcache.c
+	ygles.c
+	yglshaderes.c 
+	nanovg/nanovg.c 
+	nanovg/nanovg_osdcore.h 
+	nanovg/nanovg_osdcore.c
+	)
+endif ()
 
 if (IOS)
 add_definitions(-DIOS=1)
@@ -107,13 +124,6 @@ if (WEB_INTERFACE)
 endif()
 
 
-
-option(YAB_USE_CXX "Allow C++ in the emulation core.")
-if (YAB_USE_CXX)
-	set(yabause_SOURCES ${yabause_SOURCES} yglcache.cpp)
-else()
-	set(yabause_SOURCES ${yabause_SOURCES} yglcache.c)
-endif()
 
 option(YAB_WANT_SH2_CACHE "Enable Sh2 cache emulation" OFF)
 if (YAB_WANT_SH2_CACHE)
@@ -303,10 +313,16 @@ endif ()
 option(YAB_WANT_OPENGL "use OpenGL for video output (most ports require it)" ON)
 if (YAB_WANT_OPENGL AND (YAB_RGB STREQUAL ""))
 	include(FindOpenGL)
-	if (OPENGL_FOUND)
+	if (OPENGL_FOUND )
 		add_definitions(-DHAVE_LIBGL=1)
-		#set(YABAUSE_LIBRARIES ${YABAUSE_LIBRARIES} ${OPENGL_LIBRARIES})
-		set(YABAUSE_LIBRARIES ${YABAUSE_LIBRARIES} EGL GLESv2)
+		if( USE_EGL )
+			add_definitions(-D_OGLES3_)
+			set(YABAUSE_LIBRARIES ${YABAUSE_LIBRARIES} EGL GLESv2)
+			add_definitions(-DYAB_ASYNC_RENDERING)
+		else()
+			add_definitions(-D_OGL3_)
+			set(YABAUSE_LIBRARIES ${YABAUSE_LIBRARIES} ${OPENGL_LIBRARIES})
+		endif()
 		include_directories(./ ./nanovg)
 		set(yabause_SOURCES ${yabause_SOURCES} 
 			nanovg/nanovg.c 
@@ -331,7 +347,6 @@ if (YAB_WANT_OPENGL AND (YAB_RGB STREQUAL ""))
 		#endif()
 		string(COMPARE EQUAL ${YAB_PORTS} "glfw" glfw)
 		if( glfw )
-			add_definitions(-D_OGLES3_)
 			#include( ../CMake/Packages/external_curl.cmake )
 			#set(yabause_SOURCES ${yabause_SOURCES}
 			#	test_framework.cpp
@@ -339,7 +354,6 @@ if (YAB_WANT_OPENGL AND (YAB_RGB STREQUAL ""))
 			#)
 			add_definitions(-DYAB_ASYNC_RENDERING)
 		endif()
-		#add_definitions(-D_OGL3_)
 		if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
 			add_definitions(-D_OGLES3_)
 			set(yabause_SOURCES ${yabause_SOURCES} 
@@ -348,21 +362,25 @@ if (YAB_WANT_OPENGL AND (YAB_RGB STREQUAL ""))
 				yglshaderes.c
 			)
 		endif()
-#        include(FindGLEW)
-        #add_definitions(-D_USEGLEW_)
-        #if (GLEW_FOUND)
-        #    include_directories( ${GLEW_INCLUDE_DIRS})
-        #    set(YABAUSE_LIBRARIES ${YABAUSE_LIBRARIES} ${GLEW_LIBRARIES})
-        #else()
-	#	    add_definitions(-DGLEW_STATIC)
-	#	    include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/gllibs/include/ )
-	#		set(yabause_SOURCES
-	#			${yabause_SOURCES}
-	#			gllibs/glew/glew.c
-#				yglcache.c
-#				ygles.c
-#				yglshaderes.c )
-#		endif()
+
+		if( USE_EGL )
+		else()
+			include(FindGLEW)
+			add_definitions(-D_USEGLEW_)
+			if (GLEW_FOUND)
+					include_directories( ${GLEW_INCLUDE_DIRS})
+					set(YABAUSE_LIBRARIES ${YABAUSE_LIBRARIES} ${GLEW_LIBRARIES})
+			else()
+				add_definitions(-DGLEW_STATIC)
+					include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/gllibs/include/ )
+				set(yabause_SOURCES
+					${yabause_SOURCES}
+					gllibs/glew/glew.c)
+			endif()
+		endif()
+
+		set(yabause_SOURCES ${yabause_SOURCES} yglcache.c ygles.c yglshaderes.c )
+
 	endif(OPENGL_FOUND)
 endif ()
 
@@ -789,16 +807,19 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 	add_definitions(-DARCH_IS_FREEBSD=1)
 	set(yabause_SOURCES ${yabause_SOURCES} sock-dummy.c thr-dummy.c cd-freebsd.c)
+elseif (${CMAKE_SYSTEM_NAME} MATCHES "Switch")
+#	add_definitions(-DARCH_IS_FREEBSD=1)
+	set(yabause_SOURCES ${yabause_SOURCES} sock-dummy.c thr-nx.c )
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux" OR ${CMAKE_SYSTEM_NAME} MATCHES "Android" )
 	add_definitions(-DARCH_IS_LINUX=1)
 	set(yabause_SOURCES ${yabause_SOURCES} sock-linux.c thr-linux.c cd-linux.c)
 
-	if (${CMAKE_SYSTEM_NAME} MATCHES "Linux" )
-		check_include_file("linux/joystick.h" LINUX_HAS_JOYSTICK)
-		if (LINUX_HAS_JOYSTICK)
-			set(yabause_SOURCES ${yabause_SOURCES} perlinuxjoy.c)
-			set(yabause_HEADERS ${yabause_HEADERS} perlinuxjoy.h)
-		endif()
+        if (!ANDROID)
+          check_include_file("linux/joystick.h" LINUX_HAS_JOYSTICK)
+          	if (LINUX_HAS_JOYSTICK)
+          		set(yabause_SOURCES ${yabause_SOURCES} perlinuxjoy.c)
+          		set(yabause_HEADERS ${yabause_HEADERS} perlinuxjoy.h)
+          	endif()
 
 		check_c_source_compiles("
 			#include <linux/cdrom.h>

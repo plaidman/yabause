@@ -4962,8 +4962,11 @@ SoundRamReadLong (u32 addr)
   // If mem4b is set, mirror ram every 256k
   if (scsp.mem4b == 0)
     addr &= 0x3FFFF;
-  else if (addr > 0x7FFFF)
+  else if (addr > 0x7FFFF) {
     val = 0xFFFFFFFF;
+    SyncSh2And68k();
+    return val;
+  }
 
   SyncSh2And68k();
 
@@ -5814,9 +5817,9 @@ void ScspExecAsync() {
   }
 #endif
 
-#if defined(ASYNC_SCSP)
-  while (scsp_mute_flags){ YabThreadUSleep(16666); }
-#endif
+//#if defined(ASYNC_SCSP)
+//  while (scsp_mute_flags){ YabThreadUSleep(16666); }
+//#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////

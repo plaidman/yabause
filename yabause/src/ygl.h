@@ -23,13 +23,13 @@
 extern "C" {
 #endif
 
-#if defined(HAVE_LIBGL) || defined(__ANDROID__) || defined(IOS)
+#if defined(HAVE_LIBGL) || defined(__ANDROID__) || defined(IOS) || defined(NX)
 
 #if defined(__LIBRETRO__) && !defined(_USEGLEW_)
     #include <glsym/glsym.h>
     #include <glsm/glsm.h>
 #elif defined(__ANDROID__)
-    #include <GLES3/gl3.h>
+    #include <GLES3/gl31.h>
     #include <GLES3/gl3ext.h>
     #include <EGL/egl.h>
 
@@ -95,8 +95,8 @@ extern PFNGLPATCHPARAMETERIPROC glPatchParameteri;
 #define GL_ATOMIC_COUNTER_BARRIER_BIT     0x00001000
 #define GL_ALL_BARRIER_BITS               0xFFFFFFFF
 
-typedef void (* PFNGLMEMORYBARRIERPROC) (GLbitfield barriers);
-extern PFNGLMEMORYBARRIERPROC glMemoryBarrier;
+//typedef void (* PFNGLMEMORYBARRIERPROC) (GLbitfield barriers);
+//extern PFNGLMEMORYBARRIERPROC glMemoryBarrier;
 
 #elif defined(_WIN32)
 
@@ -432,6 +432,7 @@ typedef struct {
    u32 lineTexture;
    int id;
    int colornumber;
+   GLuint interuput_texture;
 } YglProgram;
 
 typedef struct {
@@ -465,11 +466,22 @@ typedef enum
 
 typedef enum
 {
-	RES_NATIVE = 0,
-	RES_4x,
-	RES_2x,
-    RES_ORIGINAL
+  RES_NATIVE = 0,
+  RES_4x,
+  RES_2x,
+  RES_ORIGINAL,
+  RES_720P,
+  RES_1080P
 } RESOLUTION_MODE;
+
+typedef enum
+{
+  RBG_RES_ORIGINAL = 0,
+  RBG_RES_2x,
+  RBG_RES_720P,
+  RBG_RES_1080P,
+  RBG_RES_FIT_TO_EMULATION
+} RBG_RESOLUTION_MODE;
 
 
 typedef enum {
@@ -567,14 +579,19 @@ typedef struct {
    AAMODE aamode;
    POLYGONMODE polygonmode;
    RESOLUTION_MODE resolution_mode;
+   RBG_RESOLUTION_MODE rbg_resolution_mode;
+   int rbg_use_compute_shader;
    YglTextureManager * texture_manager;
    GLsync sync;
     GLuint default_fbo;
    YglPerLineInfo bg[enBGMAX];
    u32 targetfbo;
    int vpd1_running;
-   int cpu_framebuffer_write;
-
+   int cpu_framebuffer_write[2];
+   int min_fb_x;
+   int max_fb_x;
+   int min_fb_y;
+   int max_fb_y;
 
    GLuint cram_tex;
    GLuint cram_tex_pbo;
@@ -593,12 +610,33 @@ typedef struct {
 
 extern Ygl * _Ygl;
 
+// Rotate Screen
+
+typedef struct {
+  int useb;
+  vdp2draw_struct info;
+  YglTexture texture;
+  int rgb_type;
+  int pagesize;
+  int patternshift;
+  u32 LineColorRamAdress;
+  vdp2draw_struct line_info;
+  YglTexture line_texture;
+  YglCache c;
+  YglCache cline;
+  int vres;
+  int hres;
+  int async;
+  volatile int vdp2_sync_flg;
+  float rotate_mval_h;
+  float rotate_mval_v;
+} RBGDrawInfo;
 
 int YglGLInit(int, int);
 int YglInit(int, int, unsigned int);
 void YglDeInit(void);
 float * YglQuad(vdp2draw_struct *, YglTexture *, YglCache * c);
-int YglQuadRbg0(vdp2draw_struct * input, YglTexture * output, YglCache * c, YglCache * line);
+int YglQuadRbg0(vdp2draw_struct * input, YglTexture * output, YglCache * c, YglCache * line, int rbg_type );
 void YglQuadOffset(vdp2draw_struct * input, YglTexture * output, YglCache * c, int cx, int cy, float sx, float sy);
 void YglCachedQuadOffset(vdp2draw_struct * input, YglCache * cache, int cx, int cy, float sx, float sy);
 void YglCachedQuad(vdp2draw_struct *, YglCache *);
@@ -677,7 +715,7 @@ void YglEraseWriteVDP1();
 void YglFrameChangeVDP1();
 
 
-#if !defined(__APPLE__) && !defined(__ANDROID__) && !defined(_USEGLEW_) && !defined(_OGLES3_) && !defined(__LIBRETRO__)
+#if !defined(__APPLE__) && !defined(__ANDROID__) && !defined(_USEGLEW_) && !defined(_OGLES3_) && !defined(__LIBRETRO__) &&  !defined(NX)
 
 extern GLuint (STDCALL *glCreateProgram)(void);
 extern GLuint (STDCALL *glCreateShader)(GLenum);

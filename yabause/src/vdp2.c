@@ -937,10 +937,12 @@ void vdp2VBlankOUT(void) {
 #endif
 
   if (Vdp2Regs->TVMD & 0x8000) {
+     FRAMELOG("Vdp2DrawScreens");
     VIDCore->Vdp2DrawScreens();
   }
 
   if (isrender){
+     FRAMELOG("Vdp1DrawEnd");
     VIDCore->Vdp1DrawEnd();
 #if !defined(YAB_ASYNC_RENDERING)
     yabsys.wait_line_count = 45;

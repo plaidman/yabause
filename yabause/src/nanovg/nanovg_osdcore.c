@@ -47,7 +47,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 #else
 #define NANOVG_GL3_IMPLEMENTATION
 #endif
-//#include "nanovg_gl.h"
+#if !defined(__RETORO_ARENA__)
+#include "nanovg_gl.h"
+#endif
 #include "Roboto-Bold.h"
 #include "Roboto-Regular.h"
 
@@ -87,16 +89,21 @@ static FrameProfileInfo frameinfo_histroy[MAX_HISTORY];
 static int current_history_index = 0;
 static int profile_index = 0;
 
+#if defined(__RETORO_ARENA__)
 NVGcontext * getGlobalNanoVGContext();
+#endif
 
 int OSDNanovgInit(void)
 {
-//#if defined(_OGLES3_)
-//  vg = nvgCreateGLES3(NVG_ANTIALIAS);
-//#else
-//  vg = nvgCreateGL3(NVG_ANTIALIAS);
-//#endif	
-  vg = getGlobalNanoVGContext();
+#if defined(__RETORO_ARENA__)
+  vg =getGlobalNanoVGContext();
+#else
+#if defined(_OGLES3_)
+  vg = nvgCreateGLES3(NVG_ANTIALIAS);
+#else
+  vg = nvgCreateGL3(NVG_ANTIALIAS);
+#endif
+#endif  
   if (vg == NULL) {
     printf("Could not init nanovg.\n");
     return -1;

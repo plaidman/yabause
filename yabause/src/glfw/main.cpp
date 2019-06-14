@@ -163,7 +163,7 @@ void YuiSwapBuffers(void)
 */
     glfwSwapBuffers(g_window);
  // }
-  SetOSDToggle(0);
+  SetOSDToggle(1);
 }
 
 void error_callback(int error, const char* description)

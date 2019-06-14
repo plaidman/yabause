@@ -841,13 +841,16 @@ public class Yabause extends AppCompatActivity implements  FileDialog.FileSelect
         YabauseRunnable.enableExtendedMemory(extmemory ? 1 : 0);
         Log.d(TAG,"enable Extended Memory " + extmemory);
 
+
+    YabauseRunnable.enableComputeShader(sharedPref.getBoolean("pref_use_compute_shader", false) ? 1 : 0);
+
         YabauseRunnable.enableRotateScreen(sharedPref.getBoolean("pref_rotate_screen", false) ? 1 : 0);
 
         boolean fps = sharedPref.getBoolean("pref_fps", false);
         YabauseRunnable.enableFPS(fps ? 1 : 0);
         Log.d(TAG,"enable FPS " + fps);
 
-        boolean frameskip = sharedPref.getBoolean("pref_frameskip", false);
+        boolean frameskip = sharedPref.getBoolean("pref_frameskip", true);
         YabauseRunnable.enableFrameskip(frameskip ? 1 : 0);
         Log.d(TAG, "enable enableFrameskip " + frameskip);
 
@@ -913,6 +916,10 @@ public class Yabause extends AppCompatActivity implements  FileDialog.FileSelect
         }
 
         Log.d(TAG, "video " + video);
+
+    Integer rbg_resolution_setting = new Integer(sharedPref.getString("pref_rbg_resolution", "0"));
+    YabauseRunnable.setRbgResolutionMode(rbg_resolution_setting);
+
 
         // InputDevice
     	String selInputdevice = sharedPref.getString("pref_player1_inputdevice", "65535");
@@ -983,6 +990,12 @@ public class Yabause extends AppCompatActivity implements  FileDialog.FileSelect
 
         Integer scsp_sync =  new Integer(sharedPref.getString("pref_scsp_sync_per_frame","1"));
         YabauseRunnable.setScspSyncPerFrame(scsp_sync);
+
+        Integer cpu_sync =  new Integer(sharedPref.getString("pref_cpu_sync_per_line","1"));
+        YabauseRunnable.setCpuSyncPerLine(cpu_sync);
+
+        Integer scsp_time_sync =  new Integer(sharedPref.getString("scsp_time_sync_mode","1"));
+        YabauseRunnable.setScspSyncTimeMode(scsp_time_sync);
 
     }
 

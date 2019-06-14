@@ -51,13 +51,6 @@ static int current_height;
 
 static bool renderer_running = false;
 static bool hle_bios_force = false;
-static bool one_frame_rendered = false;
-
-#ifdef DYNAREC_DEVMIYAX
-static int g_sh2coretype = 3;
-#else
-static int g_sh2coretype = SH2CORE_INTERPRETER;
-#endif
 static int g_frame_skip = 1;
 static int g_videoformattype = VIDEOFORMATTYPE_NTSC;
 static int addon_cart_type = CART_DRAM32MBIT;
@@ -99,9 +92,6 @@ void retro_set_environment(retro_environment_t cb)
       { "yabasanshiro_addon_cart", "Addon Cartridge (restart); 4M_extended_ram|1M_extended_ram" },
       { "yabasanshiro_multitap_port1", "6Player Adaptor on Port 1; disabled|enabled" },
       { "yabasanshiro_multitap_port2", "6Player Adaptor on Port 2; disabled|enabled" },
-#ifdef DYNAREC_DEVMIYAX
-      { "yabasanshiro_sh2coretype", "SH2 Core (restart); dynarec|interpreter" },
-#endif
 #ifdef ALLOW_POLYGON_MODE
       { "yabasanshiro_polygon_mode", "Polygon Mode; perspective_correction|gpu_tesselation|cpu_tesselation" },
 #endif
@@ -559,7 +549,6 @@ void YuiSwapBuffers(void)
       retro_set_resolution();
    audio_size = soundlen;
    video_cb(RETRO_HW_FRAME_BUFFER_VALID, current_width, current_height, 0);
-   one_frame_rendered = true;
 }
 
 static void context_reset(void)
@@ -574,6 +563,7 @@ static void context_reset(void)
       YabauseInit(&yinit);
       renderer_running = true;
       retro_set_resolution();
+      //YabThreadSetCurrentThreadAffinityMask(0x00);
       OSDChangeCore(OSDCORE_DUMMY);
    }
    else
@@ -685,18 +675,6 @@ void check_variables(void)
          g_videoformattype = VIDEOFORMATTYPE_PAL;
    }
 
-#ifdef DYNAREC_DEVMIYAX
-   var.key = "yabasanshiro_sh2coretype";
-   var.value = NULL;
-   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-   {
-      if (strcmp(var.value, "dynarec") == 0)
-         g_sh2coretype = 3;
-      else if (strcmp(var.value, "interpreter") == 0)
-         g_sh2coretype = SH2CORE_INTERPRETER;
-   }
-#endif
-
    var.key = "yabasanshiro_addon_cart";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -791,12 +769,16 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 
 void retro_set_controller_port_device(unsigned port, unsigned device)
 {
-   if(pad_type[port] != device)
+   switch(device)
    {
-      pad_type[port] = device;
-      if(PERCore)
-         PERCore->Init();
+      case RETRO_DEVICE_JOYPAD:
+      case RETRO_DEVICE_ANALOG:
+         pad_type[port] = device;
+         break;
    }
+
+   if(PERCore)
+      PERCore->Init();
 }
 
 size_t retro_serialize_size(void)
@@ -897,6 +879,9 @@ void retro_init(void)
    snprintf(save_dir, sizeof(save_dir), "%s%cyabasanshiro%c", g_save_dir, slash, slash);
    path_mkdir(save_dir);
 
+   if(PERCore)
+      PERCore->Init();
+
    environ_cb(RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL, &level);
 
    environ_cb(RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS, &serialization_quirks);
@@ -912,7 +897,11 @@ bool retro_load_game_common()
 
    yinit.vidcoretype               = VIDCORE_OGL;
    yinit.percoretype               = PERCORE_LIBRETRO;
-   yinit.sh2coretype               = g_sh2coretype;
+#ifdef DYNAREC_DEVMIYAX
+   yinit.sh2coretype               = 3;
+#else
+   yinit.sh2coretype               = SH2CORE_INTERPRETER;
+#endif
    yinit.sndcoretype               = SNDCORE_LIBRETRO;
 #ifdef HAVE_MUSASHI
    yinit.m68kcoretype              = M68KCORE_MUSASHI;
@@ -1270,19 +1259,15 @@ void retro_run(void)
 {
    unsigned i;
    bool updated  = false;
-   one_frame_rendered = false;
 
-   YabThreadSetCurrentThreadAffinityMask(0x00);
+   //YabThreadSetCurrentThreadAffinityMask(0x00);
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
    {
       int prev_resolution_mode = resolution_mode;
-      int prev_multitap[2] = {multitap[0],multitap[1]};
       check_variables();
       if(prev_resolution_mode != resolution_mode)
          retro_set_resolution();
-      if(PERCore && (prev_multitap[0] != multitap[0] || prev_multitap[1] != multitap[1]))
-         PERCore->Init();
       VIDCore->SetSettingValue(VDP_SETTING_POLYGON_MODE, polygon_mode);
       YabauseSetVideoFormat(g_videoformattype);
       if(g_frame_skip == 1)
@@ -1294,10 +1279,6 @@ void retro_run(void)
    //YabauseExec(); runs from handle events
    if(PERCore)
       PERCore->HandleEvents();
-
-   // If no frame rendered, dupe
-   if(!one_frame_rendered)
-      video_cb(NULL, current_width, current_height, 0);
 
    reset_global_gl_state();
 }

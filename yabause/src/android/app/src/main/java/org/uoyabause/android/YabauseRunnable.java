@@ -23,6 +23,7 @@ public class YabauseRunnable implements Runnable
     public static native void enableFPS(int enable);
     public static native void enableExtendedMemory(int enable);
     public static native void enableRotateScreen(int enable);
+    public static native void enableComputeShader(int enable);
     public static native void enableFrameskip(int enable);
     public static native void setCpu( int cpu );
     public static native void setFilter( int filter );
@@ -38,11 +39,15 @@ public class YabauseRunnable implements Runnable
     public static native void setPolygonGenerationMode( int pg );
     public static native void setSoundEngine( int engine );
     public static native void setResolutionMode( int resoution_mode );
+    public static native void setRbgResolutionMode( int resoution_mode );
+
     public static native void openTray();
     public static native void closeTray();
     public static native void switch_padmode( int mode );
     public static native void updateCheat( String[] cheat_code );
     public static native void setScspSyncPerFrame( int scsp_sync_count );
+    public static native void setCpuSyncPerLine( int cpu_sync_count );
+    public static native void setScspSyncTimeMode( int mode );
 
     public static native String getDevicelist( );
     public static native String getFilelist( int deviceid  );

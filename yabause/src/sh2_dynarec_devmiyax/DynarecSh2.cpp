@@ -42,7 +42,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 
 CompileBlocks * CompileBlocks::instance_ = NULL;
 DynarecSh2 * DynarecSh2::CurrentContext = NULL;
-
+#if !defined(_WINDOWS)
 #if defined(__arm__)
 void cacheflush(uintptr_t begin, uintptr_t end, int flag )
 { 
@@ -94,6 +94,7 @@ void cacheflush(uintptr_t begin, uintptr_t end, int flag )
 void cacheflush(uintptr_t begin, uintptr_t end, int flag ){
   __builtin___clear_cache((void*)begin,(void*)end);
 }
+#endif
 #endif
 
 i_desc opcode_list[] =

@@ -168,7 +168,7 @@ static int DummyCDGetStatus(void)
 	// player, etc. recognizes when you've ejected the tray and popped in
 	// another disc.
 
-	return 0;
+	return 2;
 }
 
 static void DummyCDSetStatus(int status){
@@ -676,8 +676,11 @@ int LoadMDSTracks(const char *mds_filename, FILE *iso_file, mds_session_struct *
                }
                else
                   wcscpy(filename, img_filename);
-
+#if defined(NX)
+               fp = fopen(filename, L"rb");
+#else
                fp = _wfopen(filename, L"rb");
+#endif               
             }
             else
             {
@@ -976,7 +979,7 @@ static int GetIntCCD(ccd_struct *ccd, char *section, char *name)
 	int i;
 	for (i = 0; i < ccd->num_dict; i++)
 	{
-#if (defined(IOS) || defined(ANDROID))
+#if (defined(IOS) || defined(ANDROID) || defined(NX) )
         if (strcasecmp(ccd->dict[i].section, section) == 0 &&
             strcasecmp(ccd->dict[i].name, name) == 0)
 #else
@@ -1157,7 +1160,7 @@ void BuildTOC()
    isoTOC[101] = (isoTOC[session->track_num - 1] & 0xFF000000) | session->fad_end;
 }
 
-#if (defined(IOS) || defined(ANDROID))
+#if (defined(IOS) || defined(ANDROID) || defined(NX) )
 #define stricmp strcasecmp
 #endif
 //////////////////////////////////////////////////////////////////////////////

@@ -22,7 +22,7 @@
 /*! \file vidogl.c
     \brief OpenGL video renderer
 */
-#if defined(HAVE_LIBGL) || defined(__ANDROID__) || defined(IOS)
+#if defined(HAVE_LIBGL) || defined(__ANDROID__) || defined(IOS) || defined(NX)
 
 #include <math.h>
 #define EPSILON (1e-10 )
@@ -179,25 +179,7 @@ static int nbg2priority = 0;
 static int nbg3priority = 0;
 static int rbg0priority = 0;
 
-// Rotate Screen
 
-typedef struct {
-  int useb;
-  vdp2draw_struct info;
-  YglTexture texture;
-  int rgb_type;
-  int pagesize;
-  int patternshift;
-  u32 LineColorRamAdress;
-  vdp2draw_struct line_info;
-  YglTexture line_texture;
-  YglCache c;
-  YglCache cline;
-  int vres;
-  int hres;
-  int async;
-  volatile int vdp2_sync_flg;
-} RBGDrawInfo;
 
 RBGDrawInfo g_rgb0;
 RBGDrawInfo g_rgb1;
@@ -548,7 +530,6 @@ static void FASTCALL Vdp1ReadTexture(vdp1cmd_struct *cmd, YglSprite *sprite, Ygl
     u16 temp;
     u32 colorLut = cmd->CMDCOLR * 8;
     u16 i;
-
     for (i = 0; i < sprite->h; i++)
     {
       u16 j;
@@ -2912,6 +2893,7 @@ void Vdp2DrawRotationThread(void * p) {
 
 #endif
 
+  printf("Vdp2DrawRotationThread\n");
   while (Vdp2DrawRotationThread_running) {
     YabThreadSetCurrentThreadAffinityMask(0x02);
     YabThreadLock(g_rotate_mtx);
@@ -2952,6 +2934,49 @@ static void FASTCALL Vdp2DrawRotation(RBGDrawInfo * rbg)
   if (vdp2height >= 448) lineInc <<= 1;
   if (vdp2height >= 448) rbg->vres = (vdp2height >> 1); else rbg->vres = vdp2height;
   if (vdp2width >= 640) rbg->hres = (vdp2width >> 1); else rbg->hres = vdp2width;
+  
+
+  switch (_Ygl->rbg_resolution_mode) {
+  case RBG_RES_ORIGINAL:
+    rbg->rotate_mval_h = 1.0f;
+    rbg->rotate_mval_v = 1.0f;
+    rbg->hres = rbg->hres * rbg->rotate_mval_h;
+    rbg->vres = rbg->vres * rbg->rotate_mval_v;
+    break;
+  case RBG_RES_2x:
+    rbg->rotate_mval_h = 2.0f;
+    rbg->rotate_mval_v = 2.0f;
+    rbg->hres = rbg->hres * rbg->rotate_mval_h;
+    rbg->vres = rbg->vres * rbg->rotate_mval_v;
+    break;
+  case RBG_RES_720P:
+    rbg->rotate_mval_h = 1280.0f / rbg->hres;
+    rbg->rotate_mval_v = 720.0f / rbg->vres;
+    rbg->hres = 1280;
+    rbg->vres = 720;
+    break;
+  case RBG_RES_1080P:
+    rbg->rotate_mval_h = 1920.0f / rbg->hres;
+    rbg->rotate_mval_v = 1080.0f / rbg->vres;
+    rbg->hres = 1920;
+    rbg->vres = 1080;
+    break;
+  case RBG_RES_FIT_TO_EMULATION:
+    rbg->rotate_mval_h = (float)GlWidth / rbg->hres;
+    rbg->rotate_mval_v = (float)GlHeight / rbg->vres;
+    rbg->hres = GlWidth;
+    rbg->vres = GlHeight;
+    break;
+  default:
+    rbg->rotate_mval_h = 1.0;
+    rbg->rotate_mval_v = 1.0;
+    break;
+  }
+
+  if (_Ygl->rbg_use_compute_shader) {
+	  RBGGenerator_init(rbg->hres, rbg->vres);
+  }
+
   info->vertices[0] = 0;
   info->vertices[1] = 0;
   info->vertices[2] = vdp2width;
@@ -3050,45 +3075,51 @@ static void FASTCALL Vdp2DrawRotation(RBGDrawInfo * rbg)
     u64 cacheaddr = 0x90000000BAD;
 
     rbg->vdp2_sync_flg = -1;
-    YglTMAllocate(_Ygl->texture_manager, &rbg->texture, info->cellw, info->cellh, &x, &y);
-    rbg->c.x = x;
-    rbg->c.y = y;
-    YglCacheAdd(_Ygl->texture_manager, cacheaddr, &rbg->c);
+	if (!_Ygl->rbg_use_compute_shader) {
+		YglTMAllocate(_Ygl->texture_manager, &rbg->texture, info->cellw, info->cellh, &x, &y);
+		rbg->c.x = x;
+		rbg->c.y = y;
+		YglCacheAdd(_Ygl->texture_manager, cacheaddr, &rbg->c);
+	}
     info->cellw = cellw;
     info->cellh = cellh;
 
-  rbg->line_texture.textdata = NULL;
-  if (info->LineColorBase != 0)
-  {
-    rbg->line_info.blendmode = 0;
-    rbg->LineColorRamAdress = (T1ReadWord(Vdp2Ram, info->LineColorBase) & 0x7FF);// +info->coloroffset;
+	rbg->line_texture.textdata = NULL;
+	if (info->LineColorBase != 0)
+	{
+		rbg->line_info.blendmode = 0;
+		rbg->LineColorRamAdress = (T1ReadWord(Vdp2Ram, info->LineColorBase) & 0x7FF);// +info->coloroffset;
 
-    u64 cacheaddr = 0xA0000000DAD;
-    YglTMAllocate(_Ygl->texture_manager, &rbg->line_texture, rbg->vres, 1,  &x, &y);
-    rbg->cline.x = x;
-    rbg->cline.y = y;
-    YglCacheAdd(_Ygl->texture_manager, cacheaddr, &rbg->cline);
+		u64 cacheaddr = 0xA0000000DAD;
+		YglTMAllocate(_Ygl->texture_manager, &rbg->line_texture, rbg->vres, 1, &x, &y);
+		rbg->cline.x = x;
+		rbg->cline.y = y;
+		YglCacheAdd(_Ygl->texture_manager, cacheaddr, &rbg->cline);
 
-  }
-  else {
-    rbg->LineColorRamAdress = 0x00;
-    rbg->cline.x = -1;
-    rbg->cline.y = -1;
-    rbg->line_texture.textdata = NULL;
-    rbg->line_texture.w = 0;
-  }
+	}
+	else {
+		rbg->LineColorRamAdress = 0x00;
+		rbg->cline.x = -1;
+		rbg->cline.y = -1;
+		rbg->line_texture.textdata = NULL;
+		rbg->line_texture.w = 0;
+	}
 
-    Vdp2DrawRotation_in(rbg);
+	Vdp2DrawRotation_in(rbg);
     
-    rbg->info.cellw = rbg->hres;
-    rbg->info.cellh = rbg->vres;
-    rbg->info.flipfunction = 0;
-    YglQuadRbg0(&rbg->info, NULL, &rbg->c, &rbg->cline);
+	if (!_Ygl->rbg_use_compute_shader) {
+		rbg->info.cellw = rbg->hres;
+		rbg->info.cellh = rbg->vres;
+		rbg->info.flipfunction = 0;
+		YglQuadRbg0(&rbg->info, NULL, &rbg->c, &rbg->cline, rbg->rgb_type );
+	}
+	else {
+		curret_rbg = rbg;
+	}
   }
 }
 
 void Vdp2RgbTextureSync() {
-
 
   if (g_rotate_mtx && curret_rbg) {
 
@@ -3113,6 +3144,14 @@ void Vdp2RgbTextureSync() {
 
 static void Vdp2DrawRotationSync() {
 
+	if (_Ygl->rbg_use_compute_shader && curret_rbg && curret_rbg->info.enable ) {
+		curret_rbg->info.cellw = curret_rbg->hres;
+		curret_rbg->info.cellh = curret_rbg->vres;
+		curret_rbg->info.flipfunction = 0;
+		YglQuadRbg0(&curret_rbg->info, NULL, &curret_rbg->c, &curret_rbg->cline, curret_rbg->rgb_type);
+		return;
+	}
+
   if (g_rotate_mtx && curret_rbg) {
 
     Vdp2RgbTextureSync();
@@ -3125,7 +3164,7 @@ static void Vdp2DrawRotationSync() {
       //  curret_rbg->info.blendmode = VDP2_CC_NONE;
       //}
       curret_rbg->info.flipfunction = 0;
-      YglQuadRbg0(&curret_rbg->info, NULL, &curret_rbg->c, &curret_rbg->cline);
+      YglQuadRbg0(&curret_rbg->info, NULL, &curret_rbg->c, &curret_rbg->cline,curret_rbg->rgb_type);
       curret_rbg->vdp2_sync_flg = RBG_IDLE;
       YGL_THREAD_DEBUG("Vdp2DrawRotationSync out %d\n", curret_rbg->vdp2_sync_flg);
     }
@@ -3134,15 +3173,15 @@ static void Vdp2DrawRotationSync() {
 
 #define ceilf(a) ((a)+0.99999f)
 
-static INLINE int vdp2rGetKValue(vdp2rotationparameter_struct * parameter, int i) {
+static INLINE int vdp2rGetKValue(vdp2rotationparameter_struct * parameter, float i) {
   float kval;
   int   kdata;
   int h = ceilf(parameter->KtablV + (parameter->deltaKAx * i));
   if (parameter->coefdatasize == 2) {
     if (parameter->k_mem_type == 0) { // vram
-      kdata = T1ReadWord(Vdp2Ram, (parameter->coeftbladdr + (h << 1)) & 0x7FFFF);
+      kdata = T1ReadWord(Vdp2Ram, (parameter->coeftbladdr + (int)(h << 1)) & 0x7FFFF);
     } else { // cram
-      kdata = T2ReadWord((Vdp2ColorRam + 0x800), (parameter->coeftbladdr + (h << 1)) & 0xFFF);
+      kdata = T2ReadWord((Vdp2ColorRam + 0x800), (parameter->coeftbladdr + (int)(h << 1)) & 0xFFF);
     }
     if (kdata & 0x8000) { return 0; }
     kval = (float)(signed)((kdata & 0x7FFF) | (kdata & 0x4000 ? 0x8000 : 0x0000)) / 1024.0f;
@@ -3155,9 +3194,9 @@ static INLINE int vdp2rGetKValue(vdp2rotationparameter_struct * parameter, int i
   }
   else {
     if (parameter->k_mem_type == 0) { // vram
-      kdata = T1ReadLong(Vdp2Ram, (parameter->coeftbladdr + (h << 2)) & 0x7FFFF);
+      kdata = T1ReadLong(Vdp2Ram, (parameter->coeftbladdr + (int)(h << 2)) & 0x7FFFF);
     } else { // cram
-      kdata = T2ReadLong((Vdp2ColorRam + 0x800), (parameter->coeftbladdr + (h << 2)) & 0xFFF);
+      kdata = T2ReadLong((Vdp2ColorRam + 0x800), (parameter->coeftbladdr + (int)(h << 2)) & 0xFFF);
     }
     parameter->lineaddr = (kdata >> 24) & 0x7F;
     if (kdata & 0x80000000) { return 0; }
@@ -3181,14 +3220,14 @@ static void Vdp2DrawRotation_in(RBGDrawInfo * rbg) {
   YglTexture *texture = &rbg->texture;
   YglTexture *line_texture = &rbg->line_texture;
 
-  int i, j;
+  float i, j;
   int x, y;
   int cellw, cellh;
   int oldcellx = -1, oldcelly = -1;
   u32 color;
   int vres, hres;
-  int h;
-  int v;
+  int h,h2;
+  int v,v2;
   int lineInc = fixVdp2Regs->LCTA.part.U & 0x8000 ? 2 : 0;
   int linecl = 0xFF;
   vdp2rotationparameter_struct *parameter;
@@ -3198,8 +3237,8 @@ static void Vdp2DrawRotation_in(RBGDrawInfo * rbg) {
   }
 
   if (vdp2height >= 448) lineInc <<= 1;
-  vres = rbg->vres;
-  hres = rbg->hres;
+  vres = rbg->vres/ rbg->rotate_mval_v;
+  hres = rbg->hres/ rbg->rotate_mval_h;
   cellw = rbg->info.cellw;
   cellh = rbg->info.cellh;
   regs = Vdp2RestoreRegs(3, Vdp2Lines);
@@ -3212,11 +3251,11 @@ static void Vdp2DrawRotation_in(RBGDrawInfo * rbg) {
     paraA.dx = paraA.A * paraA.deltaX + paraA.B * paraA.deltaY;
     paraA.dy = paraA.D * paraA.deltaX + paraA.E * paraA.deltaY;
     paraA.Xp = paraA.A * (paraA.Px - paraA.Cx) +
-      paraA.B * (paraA.Py - paraA.Cy) +
-      paraA.C * (paraA.Pz - paraA.Cz) + paraA.Cx + paraA.Mx;
+    paraA.B * (paraA.Py - paraA.Cy) +
+    paraA.C * (paraA.Pz - paraA.Cz) + paraA.Cx + paraA.Mx;
     paraA.Yp = paraA.D * (paraA.Px - paraA.Cx) +
-      paraA.E * (paraA.Py - paraA.Cy) +
-      paraA.F * (paraA.Pz - paraA.Cz) + paraA.Cy + paraA.My;
+    paraA.E * (paraA.Py - paraA.Cy) +
+    paraA.F * (paraA.Pz - paraA.Cz) + paraA.Cy + paraA.My;
   }
 
   if (rbg->useb)
@@ -3232,7 +3271,42 @@ static void Vdp2DrawRotation_in(RBGDrawInfo * rbg) {
   paraA.over_pattern_name = fixVdp2Regs->OVPNRA;
   paraB.over_pattern_name = fixVdp2Regs->OVPNRB;
 
-  for (j = 0; j < vres; j++)
+  if (_Ygl->rbg_use_compute_shader) {
+	  RBGGenerator_update(rbg);
+	  
+	  if (info->LineColorBase != 0) {
+		  const float vstep = 1.0 / rbg->rotate_mval_v;
+		  j = 0.0f;
+      int lvres = rbg->vres;
+      if (vres >= 480) {
+        lvres >>= 1;
+      }
+		  for (int jj = 0; jj < lvres; jj++) {
+			  if ((fixVdp2Regs->LCTA.part.U & 0x8000) != 0) {
+				  rbg->LineColorRamAdress = T1ReadWord(Vdp2Ram, info->LineColorBase + lineInc*(int)(j));
+				  *line_texture->textdata = rbg->LineColorRamAdress | (linecl << 24);
+				  line_texture->textdata++;
+          if (vres >= 480) {
+            *line_texture->textdata = rbg->LineColorRamAdress | (linecl << 24);
+            line_texture->textdata++;
+          }
+			  }
+			  else {
+				  *line_texture->textdata = rbg->LineColorRamAdress;
+				  line_texture->textdata++;
+			  }
+			  j += vstep;
+		  }
+	  }
+	
+	  return;
+  }
+
+  const float vstep = 1.0 / rbg->rotate_mval_v;
+  const float hstep = 1.0 / rbg->rotate_mval_h;
+  //for (j = 0; j < vres; j += vstep)
+  j = 0.0f;
+  for (int jj = 0; jj< rbg->vres; jj++)
   {
 #if 0 // PERLINE
     Vdp2 * regs = Vdp2RestoreRegs(j, Vdp2Lines);
@@ -3248,12 +3322,12 @@ static void Vdp2DrawRotation_in(RBGDrawInfo * rbg) {
       }
 #endif
       paraA.Xsp = paraA.A * ((paraA.Xst + paraA.deltaXst * j) - paraA.Px) +
-        paraA.B * ((paraA.Yst + paraA.deltaYst * j) - paraA.Py) +
-        paraA.C * (paraA.Zst - paraA.Pz);
+      paraA.B * ((paraA.Yst + paraA.deltaYst * j) - paraA.Py) +
+      paraA.C * (paraA.Zst - paraA.Pz);
 
       paraA.Ysp = paraA.D * ((paraA.Xst + paraA.deltaXst *j) - paraA.Px) +
-        paraA.E * ((paraA.Yst + paraA.deltaYst * j) - paraA.Py) +
-        paraA.F * (paraA.Zst - paraA.Pz);
+      paraA.E * ((paraA.Yst + paraA.deltaYst * j) - paraA.Py) +
+      paraA.F * (paraA.Zst - paraA.Pz);
 
       paraA.KtablV = paraA.deltaKAst* j;
     }
@@ -3292,24 +3366,27 @@ static void Vdp2DrawRotation_in(RBGDrawInfo * rbg) {
     if (info->LineColorBase != 0)
     {
       if ((fixVdp2Regs->LCTA.part.U & 0x8000) != 0) {
-        rbg->LineColorRamAdress = T1ReadWord(Vdp2Ram, info->LineColorBase);
+        rbg->LineColorRamAdress = T1ReadWord(Vdp2Ram, info->LineColorBase  + lineInc*(int)(j) );
         *line_texture->textdata = rbg->LineColorRamAdress | (linecl << 24);
         line_texture->textdata++;
-        info->LineColorBase += lineInc;
       }
       else {
-        *line_texture->textdata = rbg->LineColorRamAdress;
+      *line_texture->textdata = rbg->LineColorRamAdress;
         line_texture->textdata++;
       }
     }
 
     //	  if (regs) ReadVdp2ColorOffset(regs, info, info->linecheck_mask);
-    for (i = 0; i < hres; i++)
+    //for (i = 0; i < hres; i += hstep)
+    i = 0.0;
+    for( int ii=0; ii< rbg->hres; ii++ )
     {
-      if (Vdp2CheckWindowDot( info, i, j) == 0) {
+/*
+      if (Vdp2CheckWindowDot( info, (int)i, (int)j) == 0) {
         *(texture->textdata++) = 0x00000000;
         continue; // may be faster than GPU
       }
+*/
       switch (fixVdp2Regs->RPMD | rgb_type ) {
       case 0:
         parameter = &paraA;
@@ -3346,12 +3423,15 @@ static void Vdp2DrawRotation_in(RBGDrawInfo * rbg) {
             if (vdp2rGetKValue(parameter, i) == 0) {
               paraB.lineaddr = paraA.lineaddr;
               parameter = &paraB;
-            }
+			}
+			else {
+				int a = 0;
+			}
           }
         }
         break;
       default:
-        parameter = info->GetRParam(info, i, j);
+        parameter = info->GetRParam(info, (int)i, (int)j);
         break;
       }
       if (parameter == NULL)
@@ -3360,8 +3440,14 @@ static void Vdp2DrawRotation_in(RBGDrawInfo * rbg) {
         continue;
       }
 
-      h = (parameter->ky * (parameter->Xsp + parameter->dx * i) + parameter->Xp);
-      v = (parameter->ky * (parameter->Ysp + parameter->dy * i) + parameter->Yp);
+      float fh = (parameter->ky * (parameter->Xsp + parameter->dx * i) + parameter->Xp);
+      float fv = (parameter->ky * (parameter->Ysp + parameter->dy * i) + parameter->Yp);
+      h = fh;
+      v = fv;
+      //fh = fh-h;
+      //fv = fv-h;
+      //h2 = h + 1;
+      //v2 = v + 1;
 
       if (info->isbitmap)
       {
@@ -3389,6 +3475,7 @@ static void Vdp2DrawRotation_in(RBGDrawInfo * rbg) {
           }
         }
         // Fetch Pixel
+        info->charaddr = parameter->charaddr;
         color = Vdp2RotationFetchPixel(info, h, v, cellw);
       }
       else
@@ -3559,23 +3646,24 @@ static void Vdp2DrawRotation_in(RBGDrawInfo * rbg) {
         }
 
         // Fetch pixel
-        color = Vdp2RotationFetchPixel(info, x, y, 8);
+		color =  Vdp2RotationFetchPixel(info, x, y, 8);
       }
 
       if (info->LineColorBase != 0 && VDP2_CC_NONE != (info->blendmode&0x03)) {
         if ((color & 0xFF000000) != 0 ) {
           color |= 0x8000;
-          if (parameter->lineaddr != 0xFFFFFFFF && parameter->lineaddr != 0x000000 ) {
+          if (parameter->linecoefenab && parameter->lineaddr != 0xFFFFFFFF && parameter->lineaddr != 0x000000 ) {
             color |= ((parameter->lineaddr & 0x7F) | 0x80) << 16;
           }
         }
       }
       *(texture->textdata++) = color;
+      i += hstep;
     }
     texture->textdata += texture->w;
-    }
-
+    j += vstep;
   }
+}
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -3592,7 +3680,6 @@ static void SetSaturnResolution(int width, int height)
 
 int VIDOGLInit(void)
 {
-
   if (YglInit(2048, 1024, 8) != 0)
     return -1;
 
@@ -3601,9 +3688,13 @@ int VIDOGLInit(void)
   g_rgb0.async = 1;
   g_rgb0.rgb_type = 0;
   g_rgb0.vdp2_sync_flg = -1;
+  g_rgb0.rotate_mval_h = 1.0;
+  g_rgb0.rotate_mval_v = 1.0;
   g_rgb1.async = 0;
   g_rgb1.rgb_type = 0x04;
   g_rgb1.vdp2_sync_flg = -1;
+  g_rgb1.rotate_mval_h = 1.0;
+  g_rgb1.rotate_mval_v = 1.0;
   vdp1wratio = 1;
   vdp1hratio = 1;
 
@@ -3717,114 +3808,6 @@ void VIDOGLVdp1DrawStart(void)
   }
   _Ygl->vdp1_maxpri = maxpri;
   _Ygl->vdp1_minpri = minpri;
-
-  if (*Vdp2External.perline_alpha_draw & 0x40) {
-    u32 * linebuf;
-    int line_shift = 0;
-    if (_Ygl->rheight > 256) {
-      line_shift = 1;
-    }
-    else {
-      line_shift = 0;
-    }
-
-    linebuf = YglGetPerlineBuf(&_Ygl->bg[SPRITE], _Ygl->rheight, 1+8+8 );
-    for (line = 0; line < _Ygl->rheight; line++) {
-      linebuf[line] = 0xFF000000;
-      Vdp2 * lVdp2Regs = &Vdp2Lines[line >> line_shift];
-
-      u8 *cclist = (u8 *)&lVdp2Regs->CCRSA;
-      u8 *prilist = (u8 *)&lVdp2Regs->PRISA;
-      for (i = 0; i < 8; i++) {
-        linebuf[line + _Ygl->rheight * (1 + i)] = (prilist[i] & 0x7) << 24;
-        linebuf[line + _Ygl->rheight * (1 + 8 + i)] = (0xFF - (((cclist[i] & 0x1F) << 3) & 0xF8)) << 24;
-      }
-
-      if (lVdp2Regs->CLOFEN & 0x40) {
-
-        // color offset enable
-        if (lVdp2Regs->CLOFSL & 0x40)
-        {
-          // color offset B
-          vdp1cor = lVdp2Regs->COBR & 0xFF;
-          if (lVdp2Regs->COBR & 0x100)
-            vdp1cor |= 0xFFFFFF00;
-
-          vdp1cog = lVdp2Regs->COBG & 0xFF;
-          if (lVdp2Regs->COBG & 0x100)
-            vdp1cog |= 0xFFFFFF00;
-
-          vdp1cob = lVdp2Regs->COBB & 0xFF;
-          if (lVdp2Regs->COBB & 0x100)
-            vdp1cob |= 0xFFFFFF00;
-        }
-        else
-        {
-          // color offset A
-          vdp1cor = lVdp2Regs->COAR & 0xFF;
-          if (lVdp2Regs->COAR & 0x100)
-            vdp1cor |= 0xFFFFFF00;
-
-          vdp1cog = lVdp2Regs->COAG & 0xFF;
-          if (lVdp2Regs->COAG & 0x100)
-            vdp1cog |= 0xFFFFFF00;
-
-          vdp1cob = lVdp2Regs->COAB & 0xFF;
-          if (lVdp2Regs->COAB & 0x100)
-            vdp1cob |= 0xFFFFFF00;
-        }
-
-
-        linebuf[line] |= ((int)(128.0f + (vdp1cor / 2.0)) & 0xFF) << 16;
-        linebuf[line] |= ((int)(128.0f + (vdp1cog / 2.0)) & 0xFF) << 8;
-        linebuf[line] |= ((int)(128.0f + (vdp1cob / 2.0)) & 0xFF) << 0;
-      }
-      else {
-        linebuf[line] |= 0x00808080;
-      }
-    }
-    YglSetPerlineBuf(&_Ygl->bg[SPRITE], linebuf, _Ygl->rheight, 1+8+8);
-    _Ygl->vdp1_lineTexture = _Ygl->bg[SPRITE].lincolor_tex;
-  }
-  else {
-    _Ygl->vdp1_lineTexture = 0;
-    if (fixVdp2Regs->CLOFEN & 0x40)
-    {
-      // color offset enable
-      if (fixVdp2Regs->CLOFSL & 0x40)
-      {
-        // color offset B
-        vdp1cor = fixVdp2Regs->COBR & 0xFF;
-        if (fixVdp2Regs->COBR & 0x100)
-          vdp1cor |= 0xFFFFFF00;
-
-        vdp1cog = fixVdp2Regs->COBG & 0xFF;
-        if (fixVdp2Regs->COBG & 0x100)
-          vdp1cog |= 0xFFFFFF00;
-
-        vdp1cob = fixVdp2Regs->COBB & 0xFF;
-        if (fixVdp2Regs->COBB & 0x100)
-          vdp1cob |= 0xFFFFFF00;
-      }
-      else
-      {
-        // color offset A
-        vdp1cor = fixVdp2Regs->COAR & 0xFF;
-        if (fixVdp2Regs->COAR & 0x100)
-          vdp1cor |= 0xFFFFFF00;
-
-        vdp1cog = fixVdp2Regs->COAG & 0xFF;
-        if (fixVdp2Regs->COAG & 0x100)
-          vdp1cog |= 0xFFFFFF00;
-
-        vdp1cob = fixVdp2Regs->COAB & 0xFF;
-        if (fixVdp2Regs->COAB & 0x100)
-          vdp1cob |= 0xFFFFFF00;
-      }
-    }
-    else // color offset disable
-      vdp1cor = vdp1cog = vdp1cob = 0;
-  }
 
   _Ygl->msb_shadow_count_[_Ygl->drawframe] = 0;
 
@@ -4471,7 +4454,6 @@ void VIDOGLVdp1PolygonDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 
   sprite.blendmode = VDP1_COLOR_CL_REPLACE;
   sprite.dst = 0;
-
 
   sprite.vertices[0] = (s16)cmd.CMDXA;
   sprite.vertices[1] = (s16)cmd.CMDYA;
@@ -5396,7 +5378,7 @@ static void Vdp2DrawBackScreen(void)
 
   ReadVdp2ColorOffset(fixVdp2Regs, &info, 0x20);
 
-#if defined(__ANDROID__) || defined(_OGLES3_) || defined(_OGL3_)
+#if defined(__ANDROID__) || defined(_OGLES3_) || defined(_OGL3_) || defined(NX)
   dot = T1ReadWord(Vdp2Ram, scrAddr);
 
   if ((fixVdp2Regs->BKTAU & 0x8000) != 0 ) {
@@ -5662,13 +5644,13 @@ static void Vdp2DrawNBG0(void)
     }
 
     info.rotatenum = 1;
-    paraB.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2ParameterBPlaneAddr;
+    //paraB.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2ParameterBPlaneAddr;
     paraB.coefenab = fixVdp2Regs->KTCTL & 0x100;
     paraB.charaddr = (fixVdp2Regs->MPOFR & 0x70) * 0x2000;
     ReadPlaneSizeR(&paraB, fixVdp2Regs->PLSZ >> 12);
     for (i = 0; i < 16; i++)
     {
-      paraB.PlaneAddr(&info, i, fixVdp2Regs);
+	  Vdp2ParameterBPlaneAddr(&info, i, fixVdp2Regs);
       paraB.PlaneAddrv[i] = info.addr;
     }
 
@@ -6521,8 +6503,8 @@ static void Vdp2DrawRBG0(void)
   B0_Updated = 0;
   B1_Updated = 0;
 
-  paraA.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2ParameterAPlaneAddr;
-  paraB.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2ParameterBPlaneAddr;
+  //paraA.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2ParameterAPlaneAddr;
+  //paraB.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2ParameterBPlaneAddr;
   paraA.charaddr = (fixVdp2Regs->MPOFR & 0x7) * 0x20000;
   paraB.charaddr = (fixVdp2Regs->MPOFR & 0x70) * 0x2000;
   ReadPlaneSizeR(&paraA, fixVdp2Regs->PLSZ >> 8);
@@ -6744,9 +6726,9 @@ static void Vdp2DrawRBG0(void)
 
     for (i = 0; i < 16; i++)
     {
-      paraA.PlaneAddr(info, i, fixVdp2Regs);
+	  Vdp2ParameterAPlaneAddr(info, i, fixVdp2Regs);
       paraA.PlaneAddrv[i] = info->addr;
-      paraB.PlaneAddr(info, i, fixVdp2Regs);
+	  Vdp2ParameterBPlaneAddr(info, i, fixVdp2Regs);
       paraB.PlaneAddrv[i] = info->addr;
     }
   }
@@ -6839,11 +6821,9 @@ void VIDOGLVdp2DrawScreens(void)
 
   Vdp2GenerateWindowInfo();
 
-  if (g_rgb0.async) {
-    Vdp2DrawRBG0();
-    FrameProfileAdd("RBG0 end");
-  }
-
+  Vdp2DrawRBG0();
+  FrameProfileAdd("RBG0 end");
+  
   Vdp2DrawBackScreen();
   Vdp2DrawLineColorScreen();
 
@@ -6855,10 +6835,7 @@ void VIDOGLVdp2DrawScreens(void)
   FrameProfileAdd("NBG1 end");
   Vdp2DrawNBG0();
   FrameProfileAdd("NBG0 end");
-  if (!g_rgb0.async) {
-    Vdp2DrawRBG0();
-    FrameProfileAdd("RBG0 end");
-  }
+
   Vdp2DrawRotationSync();
 #if BG_PROFILE    
   now = YabauseGetTicks() * 1000000 / yabsys.tickfreq;
@@ -7106,39 +7083,47 @@ vdp2rotationparameter_struct * FASTCALL vdp2RGetParamMode02WithKB(vdp2draw_struc
 
 vdp2rotationparameter_struct * FASTCALL vdp2RGetParamMode03NoK(vdp2draw_struct * info, int h, int v)
 {
-  if ((fixVdp2Regs->WCTLD & 0x04) == 0) {
-    return (&paraB);
+  // Disbaled Window always return A
+  if ((fixVdp2Regs->WCTLD & 0xA) == 0) {
+    return (&paraA);
   }
 
-  if (info->WindwAreaMode == 0)
+  if (info->WindwAreaMode == WA_INSIDE)  // Inside is B, Outside is A
   {
+    // Outside is A
     if (info->pWinInfo[v].WinShowLine == 0)
     {
-      return (&paraA);
+        return (&paraA);
     }
     else {
+
+      // Outsize is A 
       if (h < info->pWinInfo[v].WinHStart || h >= info->pWinInfo[v].WinHEnd)
       {
-        return (&paraB);
-      }
-      else {
         return (&paraA);
+      }
+      // Inside is B
+      else {
+        return (&paraB);
       }
     }
   }
-  else
+  else // Inside is A, Outside is B
   {
+    // Outside is B
     if (info->pWinInfo[v].WinShowLine == 0)
     {
       return (&paraB);
     }
     else {
+      // Outsize is B
       if (h < info->pWinInfo[v].WinHStart || h >= info->pWinInfo[v].WinHEnd)
       {
-        return (&paraA);
-      }
-      else {
         return (&paraB);
+      }
+      // Insize is A
+      else {
+        return (&paraA);
       }
     }
   }
@@ -7147,39 +7132,54 @@ vdp2rotationparameter_struct * FASTCALL vdp2RGetParamMode03NoK(vdp2draw_struct *
 
 vdp2rotationparameter_struct * FASTCALL vdp2RGetParamMode03WithKA(vdp2draw_struct * info, int h, int v)
 {
-  // Virtua Fighter2
-  if (info->WindwAreaMode == 0)
+  vdp2rotationparameter_struct * p;
+
+  // Virtua Fighter2( Disbaled Window always return A )
+  if ( (fixVdp2Regs->WCTLD & 0xA) == 0) {
+    h = ceilf(paraA.KtablV + (paraA.deltaKAx * h));
+    return info->GetKValueA(&paraA, h);
+  }
+
+  if (info->WindwAreaMode == WA_INSIDE)  // Inside is B, Outside is A
   {
+    // Outside A
     if (info->pWinInfo[v].WinShowLine == 0)
     {
       h = ceilf(paraA.KtablV + (paraA.deltaKAx * h));
       return info->GetKValueA(&paraA, h);
     }
     else {
+
+      // Outsize is A 
       if (h < info->pWinInfo[v].WinHStart || h >= info->pWinInfo[v].WinHEnd)
       {
-        return (&paraB);
-      }
-      else {
         h = ceilf(paraA.KtablV + (paraA.deltaKAx * h));
         return info->GetKValueA(&paraA, h);
+
+      // Inside is B
+      } else {
+        return (&paraB);
       }
     }
   }
-  else {
+  else { // Inside is A, Outside is B
+
+    // Outside is B
     if (info->pWinInfo[v].WinShowLine == 0)
     {
-      h = ceilf(paraA.KtablV + (paraA.deltaKAx * h));
-      return info->GetKValueA(&paraA, h);
+      return (&paraB);
     }
     else {
+
+      // Outsize is B
       if (h < info->pWinInfo[v].WinHStart || h >= info->pWinInfo[v].WinHEnd)
       {
+        return (&paraB);
+      }
+      // Insize is A
+      else {
         h = ceilf(paraA.KtablV + (paraA.deltaKAx * h));
         return info->GetKValueA(&paraA, h);
-      }
-      else {
-        return (&paraB);
       }
     }
   }
@@ -7189,38 +7189,51 @@ vdp2rotationparameter_struct * FASTCALL vdp2RGetParamMode03WithKA(vdp2draw_struc
 
 vdp2rotationparameter_struct * FASTCALL vdp2RGetParamMode03WithKB(vdp2draw_struct * info, int h, int v)
 {
-  if (info->WindwAreaMode == 0)
+  // Disbaled Window always return A
+  if ((fixVdp2Regs->WCTLD & 0xA) == 0) {
+    return &paraA;
+  }
+
+  if (info->WindwAreaMode == WA_INSIDE)  // Inside is B, Outside is A
   {
+    // Outside A
     if (info->pWinInfo[v].WinShowLine == 0)
     {
       return &paraA;
     }
     else {
+
+      // Outsize is A 
       if (h < info->pWinInfo[v].WinHStart || h >= info->pWinInfo[v].WinHEnd)
       {
+        return &paraA;
+      }
+      // Inside is B
+      else {
         h = ceilf(paraB.KtablV + (paraB.deltaKAx * h));
         return info->GetKValueB(&paraB, h);
       }
-      else {
-        return &paraA;
-      }
     }
   }
-  else {
-    {
+  else { // Inside is A, Outside is B
+  {
+      // Outside is B
       if (info->pWinInfo[v].WinShowLine == 0)
       {
         h = ceilf(paraB.KtablV + (paraB.deltaKAx * h));
         return info->GetKValueB(&paraB, h);
       }
       else {
+
+        // Outsize is B
         if (h < info->pWinInfo[v].WinHStart || h >= info->pWinInfo[v].WinHEnd)
         {
-          return &paraA;
-        }
-        else {
           h = ceilf(paraB.KtablV + (paraB.deltaKAx * h));
           return info->GetKValueB(&paraB, h);
+        }
+        // Insize is A
+        else {
+          return &paraA;
         }
       }
     }
@@ -7231,6 +7244,15 @@ vdp2rotationparameter_struct * FASTCALL vdp2RGetParamMode03WithKB(vdp2draw_struc
 vdp2rotationparameter_struct * FASTCALL vdp2RGetParamMode03WithK(vdp2draw_struct * info, int h, int v)
 {
   vdp2rotationparameter_struct * p;
+
+  // Disbaled Window always return A
+  if ((fixVdp2Regs->WCTLD & 0xA) == 0) {
+    h = ceilf(paraA.KtablV + (paraA.deltaKAx * h));
+    p = info->GetKValueA(&paraA, h);
+    if (p) return p;
+    h = ceilf(paraB.KtablV + (paraB.deltaKAx * h));
+    return info->GetKValueB(&paraB, h);
+  }
 
   // Final Fight Revenge
   if (info->WindwAreaMode == WA_INSIDE) {
@@ -7301,6 +7323,20 @@ void VIDOGLSetSettingValueMode(int type, int value) {
   case VDP_SETTING_RESOLUTION_MODE:
     _Ygl->resolution_mode = value;
     break;
+  case VDP_SETTING_RBG_RESOLUTION_MODE:
+    _Ygl->rbg_resolution_mode = value;
+    break;
+  
+  case VDP_SETTING_RBG_USE_COMPUTESHADER:
+	  _Ygl->rbg_use_compute_shader = value;
+	  if (_Ygl->rbg_use_compute_shader) {
+		  g_rgb0.async = 0;
+	  }
+	  else {
+		  g_rgb0.async = 1;
+	  }
+	  break;
+
   case VDP_SETTING_POLYGON_MODE:
     if (value == GPU_TESSERATION && _Ygl->polygonmode != GPU_TESSERATION) {
       YglTesserationProgramInit();
@@ -7312,6 +7348,8 @@ void VIDOGLSetSettingValueMode(int type, int value) {
 
   return;
 }
+
+#endif
 
 #endif
 
